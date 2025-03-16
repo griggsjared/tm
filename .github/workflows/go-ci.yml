@@ -1,0 +1,38 @@
+name: Go CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.24'
+        cache: true
+    
+    - name: Install dependencies
+      run: go mod download
+    
+    - name: Verify code formatting
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "The following files are not formatted correctly:"
+          gofmt -s -l .
+          exit 1
+        fi
+    
+    - name: Build
+      run: go build -v ./...
+    
+    - name: Test
+      run: go test -v ./... -cover
+
