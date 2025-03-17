@@ -12,7 +12,7 @@ func main() {
 		return
 	}
 
-  fmt.Println("tmux is installed and we are good to go")
+	fmt.Println("tmux is installed and we are good to go")
 }
 
 type CommandRunner interface {
