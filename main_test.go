@@ -1,18 +1,35 @@
 package main
 
 import (
-	testing "testing"
+	"errors"
+	"testing"
 )
 
-func Test_main(t *testing.T) {
-	tests := []struct {
-		name string // description of this test case
-	}{
-		// TODO: Add test cases.
+type MockCommandRunner struct {
+	shouldError bool
+}
+
+func (m MockCommandRunner) Run(name string, args ...string) error {
+	if m.shouldError {
+		return errors.New("command not found")
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			main()
-		})
+	return nil
+}
+
+func TestTmuxInstalled(t *testing.T) {
+	// Test case: tmux is installed
+	successRunner := MockCommandRunner{shouldError: false}
+	successService := NewCommandService(successRunner)
+
+	if !successService.tmuxInstalled() {
+		t.Error("Expected tmux to be reported as installed")
+	}
+
+	// Test case: tmux is not installed
+	failRunner := MockCommandRunner{shouldError: true}
+	failService := NewCommandService(failRunner)
+
+	if failService.tmuxInstalled() {
+		t.Error("Expected tmux to be reported as not installed")
 	}
 }
