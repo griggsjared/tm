@@ -7,30 +7,6 @@ import (
 	"syscall"
 )
 
-const (
-	DEBUG = true
-)
-
-type config struct {
-	debug bool
-	pds   []PreDefinedSession
-	sds   []SmartSessionDirectories
-}
-
-func newConfig(debug bool, pds []PreDefinedSession, sds []SmartSessionDirectories) *config {
-	return &config{
-		debug: debug,
-		pds:   pds,
-		sds:   sds,
-	}
-}
-
-func (c *config) debugMsg(msg string) {
-	if c.debug {
-		fmt.Println(msg)
-	}
-}
-
 func main() {
 	tmuxPath, err := exec.LookPath("tmux")
 	if err != nil {
@@ -48,8 +24,10 @@ func main() {
 	//the input will be a session name
 	sName := os.Args[1]
 
-	//config will eventually come from ENV, args or config file
-	config := newConfig(DEBUG, []PreDefinedSession{}, []SmartSessionDirectories{})
+	config, err := loadConfigFromEnv()
+	if err != nil {
+		fmt.Println("Error loading config:", err)
+	}
 
 	//check existing session
 	session, err := matchExistingSession(sName, func(name string) bool {
