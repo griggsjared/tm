@@ -12,6 +12,10 @@ type CommandRunner interface {
 
 type TmuxCommandRunner struct{}
 
+func NewTmuxCommandRunner() *TmuxCommandRunner {
+	return &TmuxCommandRunner{}
+}
+
 func (t *TmuxCommandRunner) Run(path string, args []string, sc bool) error {
 	switch sc {
 	case true:
@@ -26,7 +30,7 @@ type TmuxRunner struct {
 	runner CommandRunner
 }
 
-func NewTmuxService(path string, runner CommandRunner) *TmuxRunner {
+func NewTmuxRunner(path string, runner CommandRunner) *TmuxRunner {
 	return &TmuxRunner{
 		path:   path,
 		runner: runner,

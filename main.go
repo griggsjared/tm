@@ -2,16 +2,16 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
+	"os"
 )
 
 func main() {
 
-	config, err := loadConfig()
+	config, err := LoadConfig()
 	if err != nil {
 		fmt.Println("Error loading config:", err)
-		return
+		os.Exit(1)
 	}
 
-	newApp(config, tmuxPath).run()
+	NewApp(config).Run()
 }

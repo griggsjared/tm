@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 // Session is a struct that defines tmux session that we
@@ -127,4 +128,20 @@ func (sf *SessionFinder) Find(name string) (*Session, error) {
 		return nil, err
 	}
 	return NewSession(name, cwd, false), nil
+}
+
+func dirExists(path string) bool {
+	_, err := os.Stat(path)
+	return !os.IsNotExist(err)
+}
+
+func expandHomeDir(path string) (string, error) {
+	if strings.HasPrefix(path, "~") {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		return strings.Replace(path, "~", homeDir, 1), nil
+	}
+	return path, nil
 }

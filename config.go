@@ -6,15 +6,15 @@ import (
 	"strings"
 )
 
-type config struct {
+type Config struct {
 	debug    bool
 	tmuxPath string
 	pds      []PreDefinedSession
 	sds      []SmartSessionDirectories
 }
 
-func newConfig(debug bool, tmuxPath string, pds []PreDefinedSession, sds []SmartSessionDirectories) *config {
-	return &config{
+func NewConfig(debug bool, tmuxPath string, pds []PreDefinedSession, sds []SmartSessionDirectories) *Config {
+	return &Config{
 		debug:    debug,
 		tmuxPath: tmuxPath,
 		pds:      pds,
@@ -22,7 +22,7 @@ func newConfig(debug bool, tmuxPath string, pds []PreDefinedSession, sds []Smart
 	}
 }
 
-func loadConfig() (*config, error) {
+func LoadConfig() (*Config, error) {
 
 	config, err := loadConfigFromEnv()
 	if err != nil {
@@ -45,7 +45,7 @@ func loadConfig() (*config, error) {
 // TM_PREDEFINED_SESSIONS="name1:dir1,name2:dir2"
 // TM_SMART_DIRECTORIES="dir1,dir2"
 // TMUX_PATH="/path/to/tmux"
-func loadConfigFromEnv() (*config, error) {
+func loadConfigFromEnv() (*Config, error) {
 	debug := false
 
 	// Check if debug is set in environment
@@ -85,5 +85,5 @@ func loadConfigFromEnv() (*config, error) {
 
 	tmuxPath := os.Getenv("TMUX_PATH")
 
-	return newConfig(debug, tmuxPath, pds, sds), nil
+	return NewConfig(debug, tmuxPath, pds, sds), nil
 }

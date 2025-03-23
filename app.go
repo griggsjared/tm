@@ -5,30 +5,30 @@ import (
 	"os"
 )
 
-type app struct {
-	config        *config
-	tmuxService   *TmuxService
+type App struct {
+	config        *Config
+	tmuxRunner    *TmuxRunner
 	sessionFinder *SessionFinder
 }
 
-func newApp(c *config) *app {
-	ts := NewTmuxService(c.tmuxPath, &TmuxCommandRunner{})
-	sd := NewSessionFinder(ts.HasSession, c.pds, c.sds)
+func NewApp(c *Config) *App {
+	tmuxRunner := NewTmuxRunner(c.tmuxPath, NewTmuxCommandRunner())
+	sessionFinder := NewSessionFinder(tmuxRunner.HasSession, c.pds, c.sds)
 
-	return &app{
+	return &App{
 		config:        c,
-		tmuxService:   ts,
-		sessionFinder: sd,
+		tmuxRunner:    tmuxRunner,
+		sessionFinder: sessionFinder,
 	}
 }
 
-func (a *app) debugMsg(msg string) {
+func (a *App) debugMsg(msg string) {
 	if a.config.debug {
 		fmt.Println(msg)
 	}
 }
 
-func (a *app) run() {
+func (a *App) Run() {
 
 	//we only want the first argument from the cli,
 	//if there are less than 1 error, of there are more than 1 jsut ignore the rest
@@ -50,10 +50,10 @@ func (a *app) run() {
 	// then we create a new session
 	if session.exists == false {
 		a.debugMsg(fmt.Sprintf("Creating new session: %s and setting cwd to %s", session.name, session.dir))
-		a.tmuxService.NewSession(session)
+		a.tmuxRunner.NewSession(session)
 	}
 
 	// finally join the session
 	a.debugMsg(fmt.Sprintf("Attaching to session: %s", session.name))
-	a.tmuxService.AttachSession(session)
+	a.tmuxRunner.AttachSession(session)
 }
