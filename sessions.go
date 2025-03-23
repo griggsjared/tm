@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 // Session is a struct that defines tmux session that we
 // want to use to either start or join a new tmux session
@@ -73,4 +76,53 @@ func matchExistingSession(name string, check SessionChecker) (*Session, error) {
 		return NewSession(name, "", true), nil
 	}
 	return nil, nil
+}
+
+type SessionFinder struct {
+	tmuxHasSession SessionChecker
+	config         *config
+}
+
+func NewSessionFinder(tmuxHasSession SessionChecker, config *config) *SessionFinder {
+	return &SessionFinder{
+		tmuxHasSession: tmuxHasSession,
+		config:         config,
+	}
+}
+
+func (sf *SessionFinder) Find(name string) (*Session, error) {
+	session, err := matchExistingSession(name, sf.tmuxHasSession)
+	if err != nil {
+		return nil, err
+	}
+	if session != nil {
+		return session, nil
+	}
+
+	if len(sf.config.pds) > 0 {
+		session, err = matchPreDefinedSession(name, sf.config.pds)
+		if err != nil {
+			return nil, err
+		}
+		if session != nil {
+			return session, nil
+		}
+	}
+
+	if len(sf.config.sds) > 0 {
+		session, err = matchSmartSessionDirectories(name, sf.config.sds)
+		if err != nil {
+			return nil, err
+		}
+		if session != nil {
+			return session, nil
+		}
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Println("Error getting current working directory:", err)
+		return nil, err
+	}
+	return NewSession(name, cwd, false), nil
 }

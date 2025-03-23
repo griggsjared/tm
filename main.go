@@ -13,8 +13,15 @@ func main() {
 		fmt.Println("tmux not found")
 		return
 	}
+	
+  config, err := loadConfigFromEnv()
+	if err != nil {
+		fmt.Println("Error loading config:", err)
+		return
+	}
 
-	tmuxService := NewTmuxService(tmuxPath, &TmuxCommandRunner{})
+	ts := NewTmuxService(tmuxPath, &TmuxCommandRunner{})
+	sf := NewSessionFinder(ts.HasSession, config)
 
 	//we only want the first argument from the cli,
 	//if there are less than 1 error, of there are more than 1 jsut ignore the rest
@@ -24,47 +31,9 @@ func main() {
 	}
 
 	//the input will be a session name
-	sName := os.Args[1]
-
-	config, err := loadConfigFromEnv()
+	session, err := sf.Find(os.Args[1])
 	if err != nil {
-		fmt.Println("Error loading config:", err)
-		return
-	}
-
-	//check existing session
-	session, err := matchExistingSession(sName, tmuxService.HasSession)
-	if err != nil {
-		fmt.Println("Error matching existing session:", err)
-		return
-	}
-
-	//check pre defined session
-	if session == nil && len(config.pds) > 0 {
-		session, err = matchPreDefinedSession(sName, config.pds)
-		if err != nil {
-			fmt.Println("Error matching pre defined session:", err)
-			return
-		}
-	}
-
-	//check smart session directories
-	if session == nil && len(config.sds) > 0 {
-		session, err = matchSmartSessionDirectories(sName, config.sds)
-		if err != nil {
-			fmt.Println("Error matching smart session directories:", err)
-			return
-		}
-	}
-
-	//nothing found, create a new session in the current directory
-	if session == nil {
-		cwd, err := os.Getwd()
-		if err != nil {
-			fmt.Println("Error getting current working directory:", err)
-			return
-		}
-		session = NewSession(sName, cwd, false)
+		fmt.Println("Error finding session:", err)
 	}
 
 	config.debugMsg(fmt.Sprintf("Session: %s, dir: %s, exists: %t", session.name, session.dir, session.exists))
@@ -74,10 +43,10 @@ func main() {
 	// then we create a new session
 	if session.exists == false {
 		config.debugMsg(fmt.Sprintf("Creating new session: %s and setting cwd to %s", session.name, session.dir))
-		tmuxService.NewSession(session)
+		ts.NewSession(session)
 	}
 
 	// finally join the session
 	config.debugMsg(fmt.Sprintf("Attaching to session: %s", session.name))
-	tmuxService.AttachSession(session)
+	ts.AttachSession(session)
 }
