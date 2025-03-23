@@ -26,7 +26,7 @@ func (c *config) debugMsg(msg string) {
 	}
 }
 
-//loadConfigFromEnv loads the config from the environment variables
+// loadConfigFromEnv loads the config from the environment variables
 // TM_DEBUG=true # or false
 // TM_PREDEFINED_SESSIONS="name1:dir1,name2:dir2"
 // TM_SMART_DIRECTORIES="dir1,dir2"
@@ -70,4 +70,3 @@ func loadConfigFromEnv() (*config, error) {
 
 	return newConfig(debug, pds, sds), nil
 }
-
