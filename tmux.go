@@ -43,9 +43,9 @@ func (t *TmuxService) NewSession(s *Session) error {
 		return err
 	}
 
-	return t.runner.Run(t.path, []string{"new-session", "-s", s.name, "-c", s.dir}, false)
+	return t.runner.Run(t.path, []string{"tmux", "new-session", "-s", s.name, "-c", s.dir}, true)
 }
 
 func (t *TmuxService) AttachSession(s *Session) error {
-	return t.runner.Run(t.path, []string{"attach-session", "-t", s.name}, true)
+	return t.runner.Run(t.path, []string{"tmux", "attach-session", "-t", s.name}, true)
 }
