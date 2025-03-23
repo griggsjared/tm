@@ -1,33 +1,50 @@
 package main
 
 import (
-	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 )
 
 type config struct {
-	debug bool
-	pds   []PreDefinedSession
-	sds   []SmartSessionDirectories
+	debug    bool
+	tmuxPath string
+	pds      []PreDefinedSession
+	sds      []SmartSessionDirectories
 }
 
-func newConfig(debug bool, pds []PreDefinedSession, sds []SmartSessionDirectories) *config {
+func newConfig(debug bool, tmuxPath string, pds []PreDefinedSession, sds []SmartSessionDirectories) *config {
 	return &config{
-		debug: debug,
-		pds:   pds,
-		sds:   sds,
+		debug:    debug,
+		tmuxPath: tmuxPath,
+		pds:      pds,
+		sds:      sds,
 	}
 }
 
 func loadConfig() (*config, error) {
-	return loadConfigFromEnv()
+
+	config, err := loadConfigFromEnv()
+	if err != nil {
+		return nil, err
+	}
+
+	if config.tmuxPath == "" {
+		tmuxPath, err := exec.LookPath("tmux")
+		if err != nil {
+			return nil, err
+		}
+		config.tmuxPath = tmuxPath
+	}
+
+	return config, nil
 }
 
 // loadConfigFromEnv loads the config from the environment variables
 // TM_DEBUG=true # or false
 // TM_PREDEFINED_SESSIONS="name1:dir1,name2:dir2"
 // TM_SMART_DIRECTORIES="dir1,dir2"
+// TMUX_PATH="/path/to/tmux"
 func loadConfigFromEnv() (*config, error) {
 	debug := false
 
@@ -66,5 +83,7 @@ func loadConfigFromEnv() (*config, error) {
 		}
 	}
 
-	return newConfig(debug, pds, sds), nil
+	tmuxPath := os.Getenv("TMUX_PATH")
+
+	return newConfig(debug, tmuxPath, pds, sds), nil
 }

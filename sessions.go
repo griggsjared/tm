@@ -80,13 +80,15 @@ func matchExistingSession(name string, check SessionChecker) (*Session, error) {
 
 type SessionFinder struct {
 	tmuxHasSession SessionChecker
-	config         *config
+	pds            []PreDefinedSession
+	sds            []SmartSessionDirectories
 }
 
-func NewSessionFinder(tmuxHasSession SessionChecker, config *config) *SessionFinder {
+func NewSessionFinder(tmuxHasSession SessionChecker, pds []PreDefinedSession, sds []SmartSessionDirectories) *SessionFinder {
 	return &SessionFinder{
 		tmuxHasSession: tmuxHasSession,
-		config:         config,
+		pds:            pds,
+		sds:            sds,
 	}
 }
 
@@ -99,8 +101,8 @@ func (sf *SessionFinder) Find(name string) (*Session, error) {
 		return session, nil
 	}
 
-	if len(sf.config.pds) > 0 {
-		session, err = matchPreDefinedSession(name, sf.config.pds)
+	if len(sf.pds) > 0 {
+		session, err = matchPreDefinedSession(name, sf.pds)
 		if err != nil {
 			return nil, err
 		}
@@ -109,8 +111,8 @@ func (sf *SessionFinder) Find(name string) (*Session, error) {
 		}
 	}
 
-	if len(sf.config.sds) > 0 {
-		session, err = matchSmartSessionDirectories(name, sf.config.sds)
+	if len(sf.sds) > 0 {
+		session, err = matchSmartSessionDirectories(name, sf.sds)
 		if err != nil {
 			return nil, err
 		}

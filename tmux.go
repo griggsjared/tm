@@ -21,23 +21,23 @@ func (t *TmuxCommandRunner) Run(path string, args []string, sc bool) error {
 	}
 }
 
-type TmuxService struct {
+type TmuxRunner struct {
 	path   string // path to tmux
 	runner CommandRunner
 }
 
-func NewTmuxService(path string, runner CommandRunner) *TmuxService {
-	return &TmuxService{
+func NewTmuxService(path string, runner CommandRunner) *TmuxRunner {
+	return &TmuxRunner{
 		path:   path,
 		runner: runner,
 	}
 }
 
-func (t *TmuxService) HasSession(name string) bool {
+func (t *TmuxRunner) HasSession(name string) bool {
 	return t.runner.Run(t.path, []string{"has-session", "-t", name}, false) == nil
 }
 
-func (t *TmuxService) NewSession(s *Session) error {
+func (t *TmuxRunner) NewSession(s *Session) error {
 	err := os.Chdir(s.dir)
 	if err != nil {
 		return err
@@ -46,6 +46,6 @@ func (t *TmuxService) NewSession(s *Session) error {
 	return t.runner.Run(t.path, []string{"tmux", "new-session", "-s", s.name, "-c", s.dir}, true)
 }
 
-func (t *TmuxService) AttachSession(s *Session) error {
+func (t *TmuxRunner) AttachSession(s *Session) error {
 	return t.runner.Run(t.path, []string{"tmux", "attach-session", "-t", s.name}, true)
 }
