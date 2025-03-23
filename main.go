@@ -4,18 +4,20 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"syscall"
 )
 
 func main() {
+
 	tmuxPath, err := exec.LookPath("tmux")
 	if err != nil {
 		fmt.Println("tmux not found")
 		return
 	}
 
+	tmuxService := NewTmuxService(tmuxPath, &TmuxCommandRunner{})
+
 	//we only want the first argument from the cli,
-	// if there are less than 1 error, of there are more than 1 jsut ignore the rest
+	//if there are less than 1 error, of there are more than 1 jsut ignore the rest
 	if len(os.Args) < 2 {
 		fmt.Println("Please provide a session name")
 		return
@@ -27,14 +29,14 @@ func main() {
 	config, err := loadConfigFromEnv()
 	if err != nil {
 		fmt.Println("Error loading config:", err)
+		return
 	}
 
 	//check existing session
-	session, err := matchExistingSession(sName, func(name string) bool {
-		return exec.Command("tmux", "has-session", "-t", name).Run() == nil
-	})
+	session, err := matchExistingSession(sName, tmuxService.HasSession)
 	if err != nil {
 		fmt.Println("Error matching existing session:", err)
+		return
 	}
 
 	//check pre defined session
@@ -55,11 +57,12 @@ func main() {
 		}
 	}
 
-	//nothing found, create a new session the the current directory
+	//nothing found, create a new session in the current directory
 	if session == nil {
 		cwd, err := os.Getwd()
 		if err != nil {
 			fmt.Println("Error getting current working directory:", err)
+			return
 		}
 		session = NewSession(sName, cwd, false)
 	}
@@ -71,15 +74,10 @@ func main() {
 	// then we create a new session
 	if session.exists == false {
 		config.debugMsg(fmt.Sprintf("Creating new session: %s and setting cwd to %s", session.name, session.dir))
-		err := os.Chdir(session.dir)
-		if err != nil {
-			fmt.Println("Error changing directory:", err)
-			return
-		}
-		syscall.Exec(tmuxPath, []string{"tmux", "new-session", "-s", session.name}, os.Environ())
+		tmuxService.NewSession(session)
 	}
 
 	// finally join the session
 	config.debugMsg(fmt.Sprintf("Attaching to session: %s", session.name))
-	syscall.Exec(tmuxPath, []string{"tmux", "attach-session", "-t", session.name}, os.Environ())
+	tmuxService.AttachSession(session)
 }
