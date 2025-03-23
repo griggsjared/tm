@@ -20,10 +20,8 @@ func newConfig(debug bool, pds []PreDefinedSession, sds []SmartSessionDirectorie
 	}
 }
 
-func (c *config) debugMsg(msg string) {
-	if c.debug {
-		fmt.Println(msg)
-	}
+func loadConfig() (*config, error) {
+	return loadConfigFromEnv()
 }
 
 // loadConfigFromEnv loads the config from the environment variables
