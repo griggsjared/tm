@@ -42,10 +42,10 @@ func (t *TmuxRunner) HasSession(name string) bool {
 }
 
 func (t *TmuxRunner) NewSession(s *Session) error {
-	err := os.Chdir(s.dir)
-	if err != nil {
-		return err
-	}
+	// err := os.Chdir(s.dir)
+	// if err != nil {
+	// 	return err
+	// }
 
 	return t.runner.Run(t.path, []string{"tmux", "new-session", "-s", s.name, "-c", s.dir}, true)
 }
