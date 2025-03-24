@@ -29,7 +29,7 @@ type PreDefinedSession struct {
 	name string
 }
 
-// SmartDirectories is a struct of a directory that we can search through to find a sub directory matching a session name
+// SmartSessionDirectories is a struct of a directory that we can search through to find a sub directory matching a session name
 type SmartSessionDirectories struct {
 	dir string
 }
@@ -46,6 +46,7 @@ type SessionFinder struct {
 	sds            []SmartSessionDirectories
 }
 
+// NewSessionFinder is a constructor for the SessionFinder struct
 func NewSessionFinder(tmuxHasSession SessionChecker, pds []PreDefinedSession, sds []SmartSessionDirectories) *SessionFinder {
 	return &SessionFinder{
 		sessionChecker: tmuxHasSession,
@@ -54,6 +55,7 @@ func NewSessionFinder(tmuxHasSession SessionChecker, pds []PreDefinedSession, sd
 	}
 }
 
+// Find is a function that finds a session by name
 func (sf *SessionFinder) Find(name string) (*Session, error) {
 	session, err := sf.findExistingSession(name)
 	if err != nil {
@@ -110,7 +112,7 @@ func (sf *SessionFinder) findPreDefinedSession(name string) (*Session, error) {
 	return nil, nil
 }
 
-// SmartSessionDirectories is a function that checks if a session name matches on of any provided smart session directories
+// findSmartSessionDirectories is a function that checks if a session name matches on of any provided smart session directories
 func (sf *SessionFinder) findSmartSessionDirectories(name string) (*Session, error) {
 	for _, sd := range sf.sds {
 		dir, err := expandHomeDir(fmt.Sprintf("%s/%s", sd.dir, name))
@@ -133,11 +135,13 @@ func (sf *SessionFinder) findExistingSession(name string) (*Session, error) {
 	return nil, nil
 }
 
+// dirExists is a function that checks if a directory exists
 func dirExists(path string) bool {
 	_, err := os.Stat(path)
 	return !os.IsNotExist(err)
 }
 
+// expandHomeDir is a function that expands a path that starts with ~ to the home directory
 func expandHomeDir(path string) (string, error) {
 	if strings.HasPrefix(path, "~") {
 		homeDir, err := os.UserHomeDir()
