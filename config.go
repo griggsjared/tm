@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// Config is a struct that defines the configuration for the app
 type Config struct {
 	debug              bool
 	tmuxPath           string
@@ -13,6 +14,7 @@ type Config struct {
 	smartDirectories   []SmartDirectories
 }
 
+// NewConfig is a constructor for the Config struct
 func NewConfig(debug bool, tmuxPath string, preDefinedSessions []PreDefinedSession, smartDirectories []SmartDirectories) *Config {
 	return &Config{
 		debug:              debug,
@@ -22,6 +24,7 @@ func NewConfig(debug bool, tmuxPath string, preDefinedSessions []PreDefinedSessi
 	}
 }
 
+//LoadConfig loads the final configuration from various sources
 func LoadConfig() (*Config, error) {
 
 	config, err := loadConfigFromEnv()
