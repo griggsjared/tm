@@ -24,7 +24,7 @@ func NewConfig(debug bool, tmuxPath string, preDefinedSessions []PreDefinedSessi
 	}
 }
 
-//LoadConfig loads the final configuration from various sources
+// LoadConfig loads the final configuration from various sources
 func LoadConfig() (*Config, error) {
 
 	config, err := loadConfigFromEnv()
