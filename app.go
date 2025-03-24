@@ -11,12 +11,9 @@ type App struct {
 	sessionFinder *SessionFinder
 }
 
-func NewApp(c *Config) *App {
-	tmuxRunner := NewTmuxRunner(c.tmuxPath, NewTmuxCommandRunner())
-	sessionFinder := NewSessionFinder(tmuxRunner.HasSession, c.pds, c.sds)
-
+func NewApp(tmuxRunner *TmuxRunner, sessionFinder *SessionFinder, config *Config) *App {
 	return &App{
-		config:        c,
+		config:        config,
 		tmuxRunner:    tmuxRunner,
 		sessionFinder: sessionFinder,
 	}
