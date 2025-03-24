@@ -16,7 +16,7 @@ func run() {
 		os.Exit(1)
 	}
 
-  cmdRunner := NewTmuxCommandRunner()
+	cmdRunner := NewTmuxCommandRunner()
 	tmuxRunner := NewTmuxRunner(cmdRunner, config.tmuxPath)
 	sessionFinder := NewSessionFinder(tmuxRunner, config.pds, config.sds)
 
