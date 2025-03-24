@@ -18,7 +18,7 @@ func run() {
 
 	cmdRunner := NewTmuxCommandRunner()
 	tmuxRunner := NewTmuxRunner(cmdRunner, config.tmuxPath)
-	sessionFinder := NewSessionFinder(tmuxRunner, config.pds, config.sds)
+	sessionFinder := NewSessionFinder(tmuxRunner, config.preDefinedSessions, config.smartDirectories)
 
 	NewApp(
 		tmuxRunner,

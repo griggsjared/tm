@@ -29,8 +29,8 @@ type PreDefinedSession struct {
 	name string
 }
 
-// SmartSessionDirectories is a struct of a directory that we can search through to find a sub directory matching a session name
-type SmartSessionDirectories struct {
+// SmartDirectories is a struct of a directory that we can search through to find a sub directory matching a session name
+type SmartDirectories struct {
 	dir string
 }
 
@@ -41,17 +41,17 @@ type SessionChecker interface {
 
 // SessionFinder is a struct that defines a session finder
 type SessionFinder struct {
-	sessionChecker SessionChecker
-	pds            []PreDefinedSession
-	sds            []SmartSessionDirectories
+	sessionChecker     SessionChecker
+	preDefinedSessions []PreDefinedSession
+	smartDirectories   []SmartDirectories
 }
 
 // NewSessionFinder is a constructor for the SessionFinder struct
-func NewSessionFinder(tmuxHasSession SessionChecker, pds []PreDefinedSession, sds []SmartSessionDirectories) *SessionFinder {
+func NewSessionFinder(tmuxHasSession SessionChecker, preDefinedSessions []PreDefinedSession, smartDirectories []SmartDirectories) *SessionFinder {
 	return &SessionFinder{
-		sessionChecker: tmuxHasSession,
-		pds:            pds,
-		sds:            sds,
+		sessionChecker:     tmuxHasSession,
+		preDefinedSessions: preDefinedSessions,
+		smartDirectories:   smartDirectories,
 	}
 }
 
@@ -65,7 +65,7 @@ func (sf *SessionFinder) Find(name string) (*Session, error) {
 		return session, nil
 	}
 
-	if len(sf.pds) > 0 {
+	if len(sf.preDefinedSessions) > 0 {
 		session, err = sf.findPreDefinedSession(name)
 		if err != nil {
 			return nil, err
@@ -75,7 +75,7 @@ func (sf *SessionFinder) Find(name string) (*Session, error) {
 		}
 	}
 
-	if len(sf.sds) > 0 {
+	if len(sf.smartDirectories) > 0 {
 		session, err = sf.findSmartSessionDirectories(name)
 		if err != nil {
 			return nil, err
@@ -95,7 +95,7 @@ func (sf *SessionFinder) Find(name string) (*Session, error) {
 
 // findPreDefinedSession is a function that checks if a session name matches on of any provided pre defined sessions
 func (sf *SessionFinder) findPreDefinedSession(name string) (*Session, error) {
-	for _, pd := range sf.pds {
+	for _, pd := range sf.preDefinedSessions {
 		if pd.name != name {
 			continue
 		}
@@ -114,7 +114,7 @@ func (sf *SessionFinder) findPreDefinedSession(name string) (*Session, error) {
 
 // findSmartSessionDirectories is a function that checks if a session name matches on of any provided smart session directories
 func (sf *SessionFinder) findSmartSessionDirectories(name string) (*Session, error) {
-	for _, sd := range sf.sds {
+	for _, sd := range sf.smartDirectories {
 		dir, err := expandHomeDir(fmt.Sprintf("%s/%s", sd.dir, name))
 		if err != nil {
 			return nil, err
