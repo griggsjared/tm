@@ -26,14 +26,14 @@ func (t *TmuxCommandRunner) Run(path string, args []string, sc bool) error {
 }
 
 type TmuxRunner struct {
-	path   string // path to tmux
 	runner CommandRunner
+	path   string // path to tmux
 }
 
-func NewTmuxRunner(path string, runner CommandRunner) *TmuxRunner {
+func NewTmuxRunner(runner CommandRunner, path string) *TmuxRunner {
 	return &TmuxRunner{
-		path:   path,
 		runner: runner,
+		path:   path,
 	}
 }
 

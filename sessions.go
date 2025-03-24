@@ -29,9 +29,71 @@ type PreDefinedSession struct {
 	name string
 }
 
-// matchPreDefinedSession is a function that checks if a session name matches on of any provided pre defined sessions
-func matchPreDefinedSession(name string, pds []PreDefinedSession) (*Session, error) {
-	for _, pd := range pds {
+// SmartDirectories is a struct of a directory that we can search through to find a sub directory matching a session name
+type SmartSessionDirectories struct {
+	dir string
+}
+
+// SessionChecker is a interface that defines a function that checks if a session exists
+type SessionChecker interface {
+	HasSession(name string) bool
+}
+
+// SessionFinder is a struct that defines a session finder
+type SessionFinder struct {
+	sessionChecker SessionChecker
+	pds            []PreDefinedSession
+	sds            []SmartSessionDirectories
+}
+
+func NewSessionFinder(tmuxHasSession SessionChecker, pds []PreDefinedSession, sds []SmartSessionDirectories) *SessionFinder {
+	return &SessionFinder{
+		sessionChecker: tmuxHasSession,
+		pds:            pds,
+		sds:            sds,
+	}
+}
+
+func (sf *SessionFinder) Find(name string) (*Session, error) {
+	session, err := sf.findExistingSession(name)
+	if err != nil {
+		return nil, err
+	}
+	if session != nil {
+		return session, nil
+	}
+
+	if len(sf.pds) > 0 {
+		session, err = sf.findPreDefinedSession(name)
+		if err != nil {
+			return nil, err
+		}
+		if session != nil {
+			return session, nil
+		}
+	}
+
+	if len(sf.sds) > 0 {
+		session, err = sf.findSmartSessionDirectories(name)
+		if err != nil {
+			return nil, err
+		}
+		if session != nil {
+			return session, nil
+		}
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Println("Error getting current working directory:", err)
+		return nil, err
+	}
+	return NewSession(name, cwd, false), nil
+}
+
+// findPreDefinedSession is a function that checks if a session name matches on of any provided pre defined sessions
+func (sf *SessionFinder) findPreDefinedSession(name string) (*Session, error) {
+	for _, pd := range sf.pds {
 		if pd.name != name {
 			continue
 		}
@@ -48,14 +110,9 @@ func matchPreDefinedSession(name string, pds []PreDefinedSession) (*Session, err
 	return nil, nil
 }
 
-// SmartDirectories is a struct of a directory that we can search through to find a sub directory matching a session name
-type SmartSessionDirectories struct {
-	dir string
-}
-
 // SmartSessionDirectories is a function that checks if a session name matches on of any provided smart session directories
-func matchSmartSessionDirectories(name string, sds []SmartSessionDirectories) (*Session, error) {
-	for _, sd := range sds {
+func (sf *SessionFinder) findSmartSessionDirectories(name string) (*Session, error) {
+	for _, sd := range sf.sds {
 		dir, err := expandHomeDir(fmt.Sprintf("%s/%s", sd.dir, name))
 		if err != nil {
 			return nil, err
@@ -68,66 +125,12 @@ func matchSmartSessionDirectories(name string, sds []SmartSessionDirectories) (*
 	return nil, nil
 }
 
-// SessionChecker is a function that checks if a session exists
-type SessionChecker func(name string) bool
-
-// matchExistingSession is a function that checks if a session name matches on of any provided smart session directories
-func matchExistingSession(name string, check SessionChecker) (*Session, error) {
-	if check(name) {
+// findExistingSession is a function that checks if a session name matches on of any provided smart session directories
+func (sf *SessionFinder) findExistingSession(name string) (*Session, error) {
+	if sf.sessionChecker.HasSession(name) {
 		return NewSession(name, "", true), nil
 	}
 	return nil, nil
-}
-
-type SessionFinder struct {
-	tmuxHasSession SessionChecker
-	pds            []PreDefinedSession
-	sds            []SmartSessionDirectories
-}
-
-func NewSessionFinder(tmuxHasSession SessionChecker, pds []PreDefinedSession, sds []SmartSessionDirectories) *SessionFinder {
-	return &SessionFinder{
-		tmuxHasSession: tmuxHasSession,
-		pds:            pds,
-		sds:            sds,
-	}
-}
-
-func (sf *SessionFinder) Find(name string) (*Session, error) {
-	session, err := matchExistingSession(name, sf.tmuxHasSession)
-	if err != nil {
-		return nil, err
-	}
-	if session != nil {
-		return session, nil
-	}
-
-	if len(sf.pds) > 0 {
-		session, err = matchPreDefinedSession(name, sf.pds)
-		if err != nil {
-			return nil, err
-		}
-		if session != nil {
-			return session, nil
-		}
-	}
-
-	if len(sf.sds) > 0 {
-		session, err = matchSmartSessionDirectories(name, sf.sds)
-		if err != nil {
-			return nil, err
-		}
-		if session != nil {
-			return session, nil
-		}
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		fmt.Println("Error getting current working directory:", err)
-		return nil, err
-	}
-	return NewSession(name, cwd, false), nil
 }
 
 func dirExists(path string) bool {
