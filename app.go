@@ -5,26 +5,34 @@ import (
 	"os"
 )
 
-type App struct {
-	config        *Config
-	tmuxRunner    *TmuxRunner
-	sessionFinder *SessionFinder
+// AppTmuxRunner is an interface that defines a function that runs a CommandRunner that is used by the TmuxRunner.
+type AppTmuxRunner interface {
+	NewSession(s *Session) error
+	AttachSession(s *Session) error
 }
 
-func NewApp(tmuxRunner *TmuxRunner, sessionFinder *SessionFinder, config *Config) *App {
+// AppSessionFinder is an interface that defines a function that finds a session by name
+type AppSessionFinder interface {
+	Find(name string) (*Session, error)
+}
+
+// App is a struct that defines the application and its dependencies
+type App struct {
+	debug         bool
+	tmuxRunner    AppTmuxRunner
+	sessionFinder AppSessionFinder
+}
+
+// NewApp is a constructor for the App struct
+func NewApp(tmuxRunner AppTmuxRunner, sessionFinder AppSessionFinder, debug bool) *App {
 	return &App{
-		config:        config,
+		debug:         debug,
 		tmuxRunner:    tmuxRunner,
 		sessionFinder: sessionFinder,
 	}
 }
 
-func (a *App) debugMsg(msg string) {
-	if a.config.debug {
-		fmt.Println(msg)
-	}
-}
-
+// Run is a function that bootstraps and runs the application
 func (a *App) Run() {
 
 	//we only want the first argument from the cli,
@@ -42,7 +50,7 @@ func (a *App) Run() {
 
 	a.debugMsg(fmt.Sprintf("Session: %s, dir: %s, exists: %t", session.name, session.dir, session.exists))
 
-	// if our founds sessions do not exist yet create one
+	// if our found session does not exist yet create one
 	// first we set the os dir to the session dir
 	// then we create a new session
 	if session.exists == false {
@@ -53,4 +61,11 @@ func (a *App) Run() {
 	// finally join the session
 	a.debugMsg(fmt.Sprintf("Attaching to session: %s", session.name))
 	a.tmuxRunner.AttachSession(session)
+}
+
+// debugMsg is a function that prints a message if the debug flag is set
+func (a *App) debugMsg(msg string) {
+	if a.debug {
+		fmt.Println(msg)
+	}
 }

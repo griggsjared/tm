@@ -6,14 +6,14 @@ import (
 )
 
 func main() {
-	run()
+	os.Exit(run())
 }
 
-func run() {
+func run() int {
 	config, err := LoadConfig()
 	if err != nil {
 		fmt.Println("Error loading config:", err)
-		os.Exit(1)
+		return 1
 	}
 
 	cmdRunner := NewTmuxCommandRunner()
@@ -23,6 +23,8 @@ func run() {
 	NewApp(
 		tmuxRunner,
 		sessionFinder,
-		config,
+		config.debug,
 	).Run()
+
+  return 0
 }
