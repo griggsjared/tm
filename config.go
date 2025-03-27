@@ -11,11 +11,11 @@ type Config struct {
 	debug              bool
 	tmuxPath           string
 	preDefinedSessions []PreDefinedSession
-	smartDirectories   []SmartDirectories
+	smartDirectories   []SmartDirectory
 }
 
 // NewConfig is a constructor for the Config struct
-func NewConfig(debug bool, tmuxPath string, preDefinedSessions []PreDefinedSession, smartDirectories []SmartDirectories) *Config {
+func NewConfig(debug bool, tmuxPath string, preDefinedSessions []PreDefinedSession, smartDirectories []SmartDirectory) *Config {
 	return &Config{
 		debug:              debug,
 		tmuxPath:           tmuxPath,
@@ -58,7 +58,7 @@ func loadConfigFromEnv() (*Config, error) {
 
 	// Initialize empty slices
 	pds := []PreDefinedSession{}
-	sds := []SmartDirectories{}
+	sds := []SmartDirectory{}
 
 	// Parse predefined sessions (name:dir pairs)
 	if predefinedStr := os.Getenv("TM_PREDEFINED_SESSIONS"); predefinedStr != "" {
@@ -79,7 +79,7 @@ func loadConfigFromEnv() (*Config, error) {
 		dirs := strings.Split(smartDirsStr, ",")
 		for _, dir := range dirs {
 			if trimmedDir := strings.TrimSpace(dir); trimmedDir != "" {
-				sds = append(sds, SmartDirectories{
+				sds = append(sds, SmartDirectory{
 					dir: trimmedDir,
 				})
 			}
