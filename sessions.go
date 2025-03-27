@@ -29,8 +29,8 @@ type PreDefinedSession struct {
 	name string
 }
 
-// SmartDirectories is a struct of a directory that we can search through to find a sub directory matching a session name
-type SmartDirectories struct {
+// SmartDirectory is a struct of a directory that we can search through to find a sub directory matching a session name
+type SmartDirectory struct {
 	dir string
 }
 
@@ -43,11 +43,11 @@ type SessionChecker interface {
 type SessionFinder struct {
 	sessionChecker     SessionChecker
 	preDefinedSessions []PreDefinedSession
-	smartDirectories   []SmartDirectories
+	smartDirectories   []SmartDirectory
 }
 
 // NewSessionFinder is a constructor for the SessionFinder struct
-func NewSessionFinder(tmuxHasSession SessionChecker, preDefinedSessions []PreDefinedSession, smartDirectories []SmartDirectories) *SessionFinder {
+func NewSessionFinder(tmuxHasSession SessionChecker, preDefinedSessions []PreDefinedSession, smartDirectories []SmartDirectory) *SessionFinder {
 	return &SessionFinder{
 		sessionChecker:     tmuxHasSession,
 		preDefinedSessions: preDefinedSessions,
