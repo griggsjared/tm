@@ -17,13 +17,13 @@ func run() int {
 	}
 
 	cmdRunner := NewTmuxCommandRunner()
-	tmuxRunner := NewTmuxRunner(cmdRunner, config.tmuxPath)
-	sessionFinder := NewSessionFinder(tmuxRunner, config.preDefinedSessions, config.smartDirectories)
+	tmuxRunner := NewTmuxRunner(cmdRunner, config.TmuxPath)
+	sessionFinder := NewSessionFinder(tmuxRunner, config.PreDefinedSessions, config.SmartDirectories)
 
 	NewApp(
 		tmuxRunner,
 		sessionFinder,
-		config.debug,
+		config.Debug,
 	).Run()
 
 	return 0

@@ -1,92 +1,161 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
-	"strings"
+	"path/filepath"
+
+	"github.com/sethvargo/go-envconfig"
+	yaml "gopkg.in/yaml.v3"
 )
 
 // Config is a struct that defines the configuration for the app
 type Config struct {
-	debug              bool
-	tmuxPath           string
-	preDefinedSessions []PreDefinedSession
-	smartDirectories   []SmartDirectory
+	Debug              bool
+	TmuxPath           string
+	PreDefinedSessions []PreDefinedSession
+	SmartDirectories   []SmartDirectory
 }
 
 // NewConfig is a constructor for the Config struct
 func NewConfig(debug bool, tmuxPath string, preDefinedSessions []PreDefinedSession, smartDirectories []SmartDirectory) *Config {
 	return &Config{
-		debug:              debug,
-		tmuxPath:           tmuxPath,
-		preDefinedSessions: preDefinedSessions,
-		smartDirectories:   smartDirectories,
+		Debug:              debug,
+		TmuxPath:           tmuxPath,
+		PreDefinedSessions: preDefinedSessions,
+		SmartDirectories:   smartDirectories,
 	}
 }
 
 // LoadConfig loads the final configuration from various sources
 func LoadConfig() (*Config, error) {
 
-	config, err := loadConfigFromEnv()
+	config := NewConfig(false, "", nil, nil)
+
+	envConfig, err := loadConfigFromEnv()
 	if err != nil {
 		return nil, err
 	}
 
-	if config.tmuxPath == "" {
+	defaultConfigPath, err := defaultConfigPath()
+	if err != nil {
+		return nil, err
+	}
+
+	configPath := envConfig.ConfigPath
+	if configPath == "" {
+		configPath = defaultConfigPath
+	}
+
+	fileConfig, err := loadConfigFromConfigFile(configPath, defaultConfigPath)
+	if err != nil {
+		return nil, err
+	}
+
+	config.PreDefinedSessions = make([]PreDefinedSession, len(fileConfig.Pds))
+	for i, pd := range fileConfig.Pds {
+		config.PreDefinedSessions[i] = PreDefinedSession{
+			dir:     pd.Dir,
+			name:    pd.Name,
+			aliases: pd.Aliases,
+		}
+	}
+
+	config.SmartDirectories = make([]SmartDirectory, len(fileConfig.Sds))
+	for i, sd := range fileConfig.Sds {
+		config.SmartDirectories[i] = SmartDirectory{
+			dir: sd,
+		}
+	}
+
+	config.Debug = envConfig.Debug
+	config.TmuxPath = envConfig.TmuxPath
+
+	if config.TmuxPath != "" {
+		if _, err := os.Stat(config.TmuxPath); err != nil {
+			return nil, fmt.Errorf("tmux path does not exist: %w", err)
+		}
+	} else {
 		tmuxPath, err := exec.LookPath("tmux")
 		if err != nil {
 			return nil, err
 		}
-		config.tmuxPath = tmuxPath
+		config.TmuxPath = tmuxPath
 	}
 
 	return config, nil
 }
 
+// envConfig is a struct that defines the environment configuration
+type envConfig struct {
+	Debug      bool   `env:"TM_DEBUG"`
+	TmuxPath   string `env:"TM_TMUX_PATH"`
+	ConfigPath string `env:"TM_CONFIG_PATH"`
+}
+
 // loadConfigFromEnv loads the config from the environment variables
-// TM_DEBUG=true # or false
-// TM_PREDEFINED_SESSIONS="name1:dir1,name2:dir2"
-// TM_SMART_DIRECTORIES="dir1,dir2"
-// TMUX_PATH="/path/to/tmux"
-func loadConfigFromEnv() (*Config, error) {
-	debug := false
-
-	// Check if debug is set in environment
-	if debugEnv := os.Getenv("TM_DEBUG"); debugEnv != "" {
-		debug = debugEnv == "true" || debugEnv == "1"
+func loadConfigFromEnv() (*envConfig, error) {
+	ctx := context.Background()
+	var c envConfig
+	if err := envconfig.Process(ctx, &c); err != nil {
+		return nil, err
 	}
 
-	// Initialize empty slices
-	pds := []PreDefinedSession{}
-	sds := []SmartDirectory{}
+	return &c, nil
+}
 
-	// Parse predefined sessions (name:dir pairs)
-	if predefinedStr := os.Getenv("TM_PREDEFINED_SESSIONS"); predefinedStr != "" {
-		pairs := strings.Split(predefinedStr, ",")
-		for _, pair := range pairs {
-			parts := strings.SplitN(pair, ":", 2)
-			if len(parts) == 2 {
-				pds = append(pds, PreDefinedSession{
-					name: strings.TrimSpace(parts[0]),
-					dir:  strings.TrimSpace(parts[1]),
-				})
+// fileConfig is a struct that defines the file configuration
+type fileConfig struct {
+	Pds []struct {
+		Dir     string   `yaml:"dir"`
+		Name    string   `yaml:"name"`
+		Aliases []string `yaml:"aliases"`
+	} `yaml:"sessions"`
+	Sds []string `yaml:"smart_directories"`
+}
+
+// loadConfigFromConfigFile loads the config from the config file
+func loadConfigFromConfigFile(path string, dPath string) (*fileConfig, error) {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) && path == dPath {
+			if err := os.MkdirAll(filepath.Dir(dPath), 0755); err != nil {
+				return nil, err
 			}
-		}
-	}
-
-	// Parse smart session directories (just directories)
-	if smartDirsStr := os.Getenv("TM_SMART_DIRECTORIES"); smartDirsStr != "" {
-		dirs := strings.Split(smartDirsStr, ",")
-		for _, dir := range dirs {
-			if trimmedDir := strings.TrimSpace(dir); trimmedDir != "" {
-				sds = append(sds, SmartDirectory{
-					dir: trimmedDir,
-				})
+			if err := os.WriteFile(dPath, []byte(""), 0644); err != nil {
+				return nil, err
 			}
+			return &fileConfig{}, nil
 		}
+		return nil, fmt.Errorf("config file does not exist: %w", err)
 	}
 
-	tmuxPath := os.Getenv("TMUX_PATH")
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
 
-	return NewConfig(debug, tmuxPath, pds, sds), nil
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+
+	var c fileConfig
+	if err := yaml.Unmarshal(content, &c); err != nil {
+		return nil, err
+	}
+
+	return &c, nil
+}
+
+// defaultConfigPath returns the default config path
+func defaultConfigPath() (string, error) {
+	homeDir := os.Getenv("HOME")
+	if homeDir == "" {
+		return "", fmt.Errorf("could not find home directory")
+	}
+	return filepath.Join(homeDir, ".config", "tm", "tm.yaml"), nil
 }
