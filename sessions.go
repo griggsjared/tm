@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -25,8 +26,9 @@ func NewSession(name string, dir string, exists bool) *Session {
 
 // PreDefinedSession is a struct that defines a session that we want to have a custom dir to session an
 type PreDefinedSession struct {
-	dir  string
-	name string
+	dir     string
+	name    string
+	aliases []string
 }
 
 // SmartDirectory is a struct of a directory that we can search through to find a sub directory matching a session name
@@ -93,10 +95,12 @@ func (sf *SessionFinder) Find(name string) (*Session, error) {
 	return NewSession(name, cwd, false), nil
 }
 
-// findPreDefinedSession is a function that checks if a session name matches on of any provided pre defined sessions
+// findPreDefinedSession is a function that checks if a session name matches on of any provided pre defined sessions,
+// if the a name is not found, we check for any matching aliases
 func (sf *SessionFinder) findPreDefinedSession(name string) (*Session, error) {
 	for _, pd := range sf.preDefinedSessions {
-		if pd.name != name {
+		found := slices.Contains(nameToMatch(pd), name)
+		if !found {
 			continue
 		}
 
@@ -105,11 +109,26 @@ func (sf *SessionFinder) findPreDefinedSession(name string) (*Session, error) {
 			return nil, err
 		}
 
-		if dirExists(dir) {
-			return NewSession(name, dir, false), nil
+		if !dirExists(dir) {
+			continue
 		}
+
+		return NewSession(name, dir, false), nil
 	}
 	return nil, nil
+}
+
+// nameToMatch is a function that returns a slice of strings that contains the name and aliases of a pre defined session
+func nameToMatch(pds PreDefinedSession) []string {
+	var names []string
+
+	names = append(names, pds.name)
+
+	for _, alias := range pds.aliases {
+		names = append(names, alias)
+	}
+
+	return names
 }
 
 // findSmartSessionDirectories is a function that checks if a session name matches on of any provided smart session directories
