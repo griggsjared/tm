@@ -113,7 +113,7 @@ func (sf *SessionFinder) findPreDefinedSession(name string) (*Session, error) {
 			continue
 		}
 
-		return NewSession(name, dir, false), nil
+		return NewSession(pd.name, dir, false), nil
 	}
 	return nil, nil
 }
