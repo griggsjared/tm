@@ -26,5 +26,5 @@ func run() int {
 		config.debug,
 	).Run()
 
-  return 0
+	return 0
 }
