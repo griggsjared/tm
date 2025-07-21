@@ -27,133 +27,189 @@ func TestNewTmuxCommandRunner(t *testing.T) {
 }
 
 func TestTmuxRunner_HasSession(t *testing.T) {
-	t.Run("session exists", func(t *testing.T) {
-		cr := &TestCommandRunner{result: nil} // nil error means command succeeded
-		runner := NewTmuxRunner(cr, "/usr/bin/tmux")
+	tests := []struct {
+		name       string
+		cmdResult  error
+		wantExists bool
+		wantArgs   []string
+		wantPath   string
+		wantSc     bool
+	}{
+		{
+			name:       "session exists",
+			cmdResult:  nil,
+			wantExists: true,
+			wantArgs:   []string{"has-session", "-t", "test-session"},
+			wantPath:   "/usr/bin/tmux",
+			wantSc:     false,
+		},
+		{
+			name:       "session doesn't exist",
+			cmdResult:  errors.New("session not found"),
+			wantExists: false,
+			wantArgs:   []string{"has-session", "-t", "non-existent"},
+			wantPath:   "/usr/bin/tmux",
+			wantSc:     false,
+		},
+	}
 
-		exists := runner.HasSession("test-session")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cr := &TestCommandRunner{result: tt.cmdResult}
+			runner := NewTmuxRunner(cr, "/usr/bin/tmux")
 
-		if exists != true {
-			t.Fatalf("HasSession should return true when command succeeds")
-		}
+			var exists bool
+			if tt.name == "session exists" {
+				exists = runner.HasSession("test-session")
+			} else {
+				exists = runner.HasSession("non-existent")
+			}
 
-		if cr.providedPath != "/usr/bin/tmux" {
-			t.Fatalf("Expected /usr/bin/tmux, got %s", cr.providedPath)
-		}
+			if exists != tt.wantExists {
+				t.Fatalf("HasSession should return %v, got %v", tt.wantExists, exists)
+			}
 
-		if cr.providedArgs[0] != "has-session" {
-			t.Fatalf("Expected has-session, got %s", cr.providedArgs[0])
-		}
+			if cr.providedPath != tt.wantPath {
+				t.Fatalf("Expected path %s, got %s", tt.wantPath, cr.providedPath)
+			}
 
-		if cr.providedArgs[1] != "-t" {
-			t.Fatalf("Expected -t, got %s", cr.providedArgs[1])
-		}
+			for i, wantArg := range tt.wantArgs {
+				if len(cr.providedArgs) <= i || cr.providedArgs[i] != wantArg {
+					t.Fatalf("Expected arg[%d] %s, got %v", i, wantArg, cr.providedArgs)
+				}
+			}
 
-		if cr.providedArgs[2] != "test-session" {
-			t.Fatalf("Expected test-session, got %s", cr.providedArgs[2])
-		}
-
-		if cr.providedSc != false {
-			t.Fatalf("Should not use syscall.Exec for has-session")
-		}
-	})
-
-	t.Run("session doesn't exist", func(t *testing.T) {
-		cr := &TestCommandRunner{result: errors.New("session not found")}
-		runner := NewTmuxRunner(cr, "/usr/bin/tmux")
-
-		exists := runner.HasSession("non-existent")
-
-		if exists != false {
-			t.Fatalf("HasSession should return false when command fails")
-		}
-	})
+			if cr.providedSc != tt.wantSc {
+				t.Fatalf("Expected syscall.Exec %v, got %v", tt.wantSc, cr.providedSc)
+			}
+		})
+	}
 }
 
-func TestTmuxRunnzaer_NewSession(t *testing.T) {
-	t.Run("successful session creation", func(t *testing.T) {
-		cr := &TestCommandRunner{result: nil}
-		runner := NewTmuxRunner(cr, "/usr/bin/tmux")
-		session := &Session{
-			name: "new-test-session",
-			dir:  "/tmp",
-		}
+func TestTmuxRunner_NewSession(t *testing.T) {
+	tests := []struct {
+		name      string
+		session   *Session
+		cmdResult error
+		wantArgs  []string
+		wantPath  string
+		wantSc    bool
+		wantErr   bool
+	}{
+		{
+			name: "successful session creation",
+			session: &Session{
+				name: "new-test-session",
+				dir:  "/tmp",
+			},
+			cmdResult: nil,
+			wantArgs:  []string{"tmux", "new-session", "-s", "new-test-session", "-c", "/tmp"},
+			wantPath:  "/usr/bin/tmux",
+			wantSc:    true,
+			wantErr:   false,
+		},
+		{
+			name: "failed session creation",
+			session: &Session{
+				name: "failed-session",
+				dir:  "/tmp",
+			},
+			cmdResult: errors.New("failed to create session"),
+			wantArgs:  []string{"tmux", "new-session", "-s", "failed-session", "-c", "/tmp"},
+			wantPath:  "/usr/bin/tmux",
+			wantSc:    true,
+			wantErr:   true,
+		},
+	}
 
-		err := runner.NewSession(session)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cr := &TestCommandRunner{result: tt.cmdResult}
+			runner := NewTmuxRunner(cr, "/usr/bin/tmux")
 
-		if err != nil {
-			t.Fatalf("NewSession should not return an error when command succeeds")
-		}
+			err := runner.NewSession(tt.session)
 
-		if cr.providedPath != "/usr/bin/tmux" {
-			t.Fatalf("Expected /usr/bin/tmux, got %s", cr.providedPath)
-		}
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("NewSession error = %v, wantErr %v", err, tt.wantErr)
+			}
 
-		if cr.providedArgs[0] != "tmux" {
-			t.Fatalf("Expected tmux, got %s", cr.providedArgs[0])
-		}
+			if cr.providedPath != tt.wantPath {
+				t.Fatalf("Expected path %s, got %s", tt.wantPath, cr.providedPath)
+			}
 
-		if cr.providedArgs[1] != "new-session" {
-			t.Fatalf("Expected new-session, got %s", cr.providedArgs[1])
-		}
+			for i, wantArg := range tt.wantArgs {
+				if len(cr.providedArgs) <= i || cr.providedArgs[i] != wantArg {
+					t.Fatalf("Expected arg[%d] %s, got %v", i, wantArg, cr.providedArgs)
+				}
+			}
 
-		if cr.providedArgs[2] != "-s" {
-			t.Fatalf("Expected -s, got %s", cr.providedArgs[2])
-		}
-
-		if cr.providedArgs[3] != "new-test-session" {
-			t.Fatalf("Expected new-test-session, got %s", cr.providedArgs[3])
-		}
-
-		if cr.providedArgs[4] != "-c" {
-			t.Fatalf("Expected -c, got %s", cr.providedArgs[4])
-		}
-
-		if cr.providedArgs[5] != "/tmp" {
-			t.Fatalf("Expected /tmp, got %s", cr.providedArgs[5])
-		}
-
-		if cr.providedSc != true {
-			t.Fatalf("Should use syscall.Exec for new-session")
-		}
-	})
+			if cr.providedSc != tt.wantSc {
+				t.Fatalf("Expected syscall.Exec %v, got %v", tt.wantSc, cr.providedSc)
+			}
+		})
+	}
 }
 
 func TestTmuxRunner_AttachSession(t *testing.T) {
-	cr := &TestCommandRunner{result: nil}
-	runner := NewTmuxRunner(cr, "/usr/bin/tmux")
-	session := &Session{
-		name: "existing-session",
-		dir:  "/tmp", // Not used in attach
+	tests := []struct {
+		name      string
+		session   *Session
+		cmdResult error
+		wantArgs  []string
+		wantPath  string
+		wantSc    bool
+		wantErr   bool
+	}{
+		{
+			name: "successful attach session",
+			session: &Session{
+				name: "existing-session",
+				dir:  "/tmp",
+			},
+			cmdResult: nil,
+			wantArgs:  []string{"tmux", "attach-session", "-t", "existing-session"},
+			wantPath:  "/usr/bin/tmux",
+			wantSc:    true,
+			wantErr:   false,
+		},
+		{
+			name: "failed attach session",
+			session: &Session{
+				name: "non-existing-session",
+				dir:  "/tmp",
+			},
+			cmdResult: errors.New("session not found"),
+			wantArgs:  []string{"tmux", "attach-session", "-t", "non-existing-session"},
+			wantPath:  "/usr/bin/tmux",
+			wantSc:    true,
+			wantErr:   true,
+		},
 	}
 
-	err := runner.AttachSession(session)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cr := &TestCommandRunner{result: tt.cmdResult}
+			runner := NewTmuxRunner(cr, "/usr/bin/tmux")
 
-	if err != nil {
-		t.Fatalf("AttachSession should not return an error when command succeeds")
-	}
+			err := runner.AttachSession(tt.session)
 
-	if cr.providedPath != "/usr/bin/tmux" {
-		t.Fatalf("Expected /usr/bin/tmux, got %s", cr.providedPath)
-	}
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("AttachSession error = %v, wantErr %v", err, tt.wantErr)
+			}
 
-	if cr.providedArgs[0] != "tmux" {
-		t.Fatalf("Expected tmux, got %s", cr.providedArgs[0])
-	}
+			if cr.providedPath != tt.wantPath {
+				t.Fatalf("Expected path %s, got %s", tt.wantPath, cr.providedPath)
+			}
 
-	if cr.providedArgs[1] != "attach-session" {
-		t.Fatalf("Expected attach-session, got %s", cr.providedArgs[1])
-	}
+			for i, wantArg := range tt.wantArgs {
+				if len(cr.providedArgs) <= i || cr.providedArgs[i] != wantArg {
+					t.Fatalf("Expected arg[%d] %s, got %v", i, wantArg, cr.providedArgs)
+				}
+			}
 
-	if cr.providedArgs[2] != "-t" {
-		t.Fatalf("Expected -t, got %s", cr.providedArgs[2])
-	}
-
-	if cr.providedArgs[3] != "existing-session" {
-		t.Fatalf("Expected existing-session, got %s", cr.providedArgs[3])
-	}
-
-	if cr.providedSc != true {
-		t.Fatalf("Should use syscall.Exec for attach-session")
+			if cr.providedSc != tt.wantSc {
+				t.Fatalf("Expected syscall.Exec %v, got %v", tt.wantSc, cr.providedSc)
+			}
+		})
 	}
 }
