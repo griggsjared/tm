@@ -123,10 +123,7 @@ func nameToMatch(pds PreDefinedSession) []string {
 	var names []string
 
 	names = append(names, pds.name)
-
-	for _, alias := range pds.aliases {
-		names = append(names, alias)
-	}
+	names = append(names, pds.aliases...)
 
 	return names
 }

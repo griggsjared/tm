@@ -53,14 +53,20 @@ func (a *App) Run() {
 	// if our found session does not exist yet create one
 	// first we set the os dir to the session dir
 	// then we create a new session
-	if session.exists == false {
+	if !session.exists {
 		a.debugMsg(fmt.Sprintf("Creating new session: %s and setting cwd to %s", session.name, session.dir))
-		a.tmuxRunner.NewSession(session)
+		err = a.tmuxRunner.NewSession(session)
+		if err != nil {
+			fmt.Println("Error creating session:", err)
+		}
 	}
 
 	// finally join the session
 	a.debugMsg(fmt.Sprintf("Attaching to session: %s", session.name))
-	a.tmuxRunner.AttachSession(session)
+	err = a.tmuxRunner.AttachSession(session)
+	if err != nil {
+		fmt.Println("Error attaching to session:", err)
+	}
 }
 
 // debugMsg is a function that prints a message if the debug flag is set
