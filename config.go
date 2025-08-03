@@ -157,5 +157,5 @@ func defaultConfigPath() (string, error) {
 	if homeDir == "" {
 		return "", fmt.Errorf("could not find home directory")
 	}
-	return filepath.Join(homeDir, ".config", "tm", "tm.yaml"), nil
+	return filepath.Join(homeDir, ".config", "tm", "config.yaml"), nil
 }
