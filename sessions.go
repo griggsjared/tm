@@ -104,6 +104,17 @@ func (sf *SessionFinder) findPreDefinedSession(name string) (*Session, error) {
 			continue
 		}
 
+		// We may have matched on an alias for al already running session
+		// if that session exists we can just return that session instead
+		// of starting a new one,
+		existing, err := sf.findExistingSession(pd.name)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			return existing, nil
+		}
+
 		dir, err := expandHomeDir(pd.dir)
 		if err != nil {
 			return nil, err

@@ -228,6 +228,15 @@ func TestSessionFinderFind(t *testing.T) {
 			wantDir: projectDir,
 		},
 		{
+			name:    "predefined session that is already running and matches on alias",
+			checker: &mockChecker{hasSession: true},
+			pre: []PreDefinedSession{
+				{name: "running", dir: projectDir, aliases: []string{"run"}},
+			},
+			lookup:     "run",
+			wantExists: true,
+		},
+		{
 			name:    "smart directory",
 			checker: &mockChecker{hasSession: false},
 			smart:   []SmartDirectory{{dir: tmp}},
