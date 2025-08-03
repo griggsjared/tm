@@ -30,4 +30,37 @@ The application will:
 
 ## Configuration
 
-TM loads its configuration from environment variables. More details coming soon.
+TM loads its configuration from both environment variables and a YAML config file.
+
+### Environment Variables
+
+- `TM_DEBUG`: Enable debug mode (`true` or `false`). Defaults to `false`. Used to show extra debug information.
+- `TM_TMUX_PATH`: Path to the tmux binary. Defualt to `tmux` found in your path.
+- `TM_CONFIG_PATH`: Path to the config file. Defaults to `~/.config/tm/config.yaml`.
+
+### Config File
+
+The config file is a YAML file located at `~/.config/tm/config.yaml` by default. It defines pre-defined sessions and smart directories.
+
+#### Example config:
+
+```yaml
+sessions:
+  -
+    dir: ~/.config/app1
+    name: app1
+    aliases:
+      - config1
+      - settings1
+  -
+    dir: ~/.config/app2
+    name: app2
+    aliases:
+      - config2
+      - settings2
+
+smart_directories:
+  - ~/projects
+  - ~/work
+  - ~/school
+```
