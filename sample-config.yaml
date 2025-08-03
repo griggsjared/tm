@@ -1,0 +1,18 @@
+sessions:
+  -
+    dir: ~/.config/app1
+    name: app1
+    aliases:
+      - config1
+      - settings1
+  -
+    dir: ~/.config/app2
+    name: app2
+    aliases:
+      - config2
+      - settings2
+
+smart_directories:
+  - ~/projects
+  - ~/work
+  - ~/school
