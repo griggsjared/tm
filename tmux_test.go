@@ -6,17 +6,22 @@ import (
 )
 
 type TestCommandRunner struct {
-	result       error
+	output       []byte
+	error        error
 	providedPath string
 	providedArgs []string
-	providedSc   bool
 }
 
-func (t *TestCommandRunner) Run(path string, args []string, sc bool) error {
+func (t *TestCommandRunner) Run(path string, args []string) ([]byte, error) {
 	t.providedPath = path
 	t.providedArgs = args
-	t.providedSc = sc
-	return t.result
+	return t.output, t.error
+}
+
+func (t *TestCommandRunner) Exec(path string, args []string) error {
+	t.providedPath = path
+	t.providedArgs = args
+	return t.error
 }
 
 func TestNewTmuxCommandRunner(t *testing.T) {
@@ -29,33 +34,30 @@ func TestNewTmuxCommandRunner(t *testing.T) {
 func TestTmuxRunner_HasSession(t *testing.T) {
 	tests := []struct {
 		name       string
-		cmdResult  error
 		wantExists bool
 		wantArgs   []string
 		wantPath   string
-		wantSc     bool
+		wantErr  error
 	}{
 		{
 			name:       "session exists",
-			cmdResult:  nil,
 			wantExists: true,
 			wantArgs:   []string{"has-session", "-t", "test-session"},
 			wantPath:   "/usr/bin/tmux",
-			wantSc:     false,
+			wantErr:   nil,
 		},
 		{
 			name:       "session doesn't exist",
-			cmdResult:  errors.New("session not found"),
 			wantExists: false,
 			wantArgs:   []string{"has-session", "-t", "non-existent"},
 			wantPath:   "/usr/bin/tmux",
-			wantSc:     false,
+			wantErr:   errors.New("session not found"),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cr := &TestCommandRunner{result: tt.cmdResult}
+			cr := &TestCommandRunner{error: tt.wantErr}
 			runner := NewTmuxRunner(cr, "/usr/bin/tmux")
 
 			var exists bool
@@ -78,23 +80,17 @@ func TestTmuxRunner_HasSession(t *testing.T) {
 					t.Fatalf("Expected arg[%d] %s, got %v", i, wantArg, cr.providedArgs)
 				}
 			}
-
-			if cr.providedSc != tt.wantSc {
-				t.Fatalf("Expected syscall.Exec %v, got %v", tt.wantSc, cr.providedSc)
-			}
 		})
 	}
 }
 
 func TestTmuxRunner_NewSession(t *testing.T) {
 	tests := []struct {
-		name      string
-		session   *Session
-		cmdResult error
-		wantArgs  []string
-		wantPath  string
-		wantSc    bool
-		wantErr   bool
+		name     string
+		session  *Session
+		wantArgs []string
+		wantPath string
+		wantErr  error
 	}{
 		{
 			name: "successful session creation",
@@ -102,11 +98,9 @@ func TestTmuxRunner_NewSession(t *testing.T) {
 				name: "new-test-session",
 				dir:  "/tmp",
 			},
-			cmdResult: nil,
-			wantArgs:  []string{"tmux", "new-session", "-s", "new-test-session", "-c", "/tmp"},
-			wantPath:  "/usr/bin/tmux",
-			wantSc:    true,
-			wantErr:   false,
+			wantArgs: []string{"tmux", "new-session", "-s", "new-test-session", "-c", "/tmp"},
+			wantPath: "/usr/bin/tmux",
+			wantErr:  nil,
 		},
 		{
 			name: "failed session creation",
@@ -114,22 +108,20 @@ func TestTmuxRunner_NewSession(t *testing.T) {
 				name: "failed-session",
 				dir:  "/tmp",
 			},
-			cmdResult: errors.New("failed to create session"),
-			wantArgs:  []string{"tmux", "new-session", "-s", "failed-session", "-c", "/tmp"},
-			wantPath:  "/usr/bin/tmux",
-			wantSc:    true,
-			wantErr:   true,
+			wantArgs: []string{"tmux", "new-session", "-s", "failed-session", "-c", "/tmp"},
+			wantPath: "/usr/bin/tmux",
+			wantErr:  errors.New("failed to create session"),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cr := &TestCommandRunner{result: tt.cmdResult}
+			cr := &TestCommandRunner{error: tt.wantErr}
 			runner := NewTmuxRunner(cr, "/usr/bin/tmux")
 
 			err := runner.NewSession(tt.session)
 
-			if (err != nil) != tt.wantErr {
+			if err != tt.wantErr {
 				t.Fatalf("NewSession error = %v, wantErr %v", err, tt.wantErr)
 			}
 
@@ -142,23 +134,17 @@ func TestTmuxRunner_NewSession(t *testing.T) {
 					t.Fatalf("Expected arg[%d] %s, got %v", i, wantArg, cr.providedArgs)
 				}
 			}
-
-			if cr.providedSc != tt.wantSc {
-				t.Fatalf("Expected syscall.Exec %v, got %v", tt.wantSc, cr.providedSc)
-			}
 		})
 	}
 }
 
 func TestTmuxRunner_AttachSession(t *testing.T) {
 	tests := []struct {
-		name      string
-		session   *Session
-		cmdResult error
-		wantArgs  []string
-		wantPath  string
-		wantSc    bool
-		wantErr   bool
+		name     string
+		session  *Session
+		wantArgs []string
+		wantPath string
+		wantErr  error
 	}{
 		{
 			name: "successful attach session",
@@ -166,11 +152,9 @@ func TestTmuxRunner_AttachSession(t *testing.T) {
 				name: "existing-session",
 				dir:  "/tmp",
 			},
-			cmdResult: nil,
-			wantArgs:  []string{"tmux", "attach-session", "-t", "existing-session"},
-			wantPath:  "/usr/bin/tmux",
-			wantSc:    true,
-			wantErr:   false,
+			wantArgs: []string{"tmux", "attach-session", "-t", "existing-session"},
+			wantPath: "/usr/bin/tmux",
+			wantErr:  nil,
 		},
 		{
 			name: "failed attach session",
@@ -178,22 +162,20 @@ func TestTmuxRunner_AttachSession(t *testing.T) {
 				name: "non-existing-session",
 				dir:  "/tmp",
 			},
-			cmdResult: errors.New("session not found"),
-			wantArgs:  []string{"tmux", "attach-session", "-t", "non-existing-session"},
-			wantPath:  "/usr/bin/tmux",
-			wantSc:    true,
-			wantErr:   true,
+			wantArgs: []string{"tmux", "attach-session", "-t", "non-existing-session"},
+			wantPath: "/usr/bin/tmux",
+			wantErr:  errors.New("session not found"),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cr := &TestCommandRunner{result: tt.cmdResult}
+			cr := &TestCommandRunner{error: tt.wantErr}
 			runner := NewTmuxRunner(cr, "/usr/bin/tmux")
 
 			err := runner.AttachSession(tt.session)
 
-			if (err != nil) != tt.wantErr {
+			if err != tt.wantErr {
 				t.Fatalf("AttachSession error = %v, wantErr %v", err, tt.wantErr)
 			}
 
@@ -206,9 +188,10 @@ func TestTmuxRunner_AttachSession(t *testing.T) {
 					t.Fatalf("Expected arg[%d] %s, got %v", i, wantArg, cr.providedArgs)
 				}
 			}
+		})
+	}
+}
 
-			if cr.providedSc != tt.wantSc {
-				t.Fatalf("Expected syscall.Exec %v, got %v", tt.wantSc, cr.providedSc)
 			}
 		})
 	}

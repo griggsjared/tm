@@ -8,7 +8,8 @@ import (
 
 // CommandRunner is an interface that defines a function that runs a CommandRunner that is used by the TmuxRunner.
 type CommandRunner interface {
-	Run(path string, args []string, sc bool) error
+	Run(path string, args []string) ([]byte, error)
+	Exec(path string, args []string) error
 }
 
 // TmuxCommandRunner is a struct that defines a concrete implementation of the CommandRunner interface.
@@ -20,16 +21,17 @@ func NewTmuxCommandRunner() *TmuxCommandRunner {
 }
 
 // Run is a function that runs a command with the provided path, args, and sc.
+// Run is a function that runs a command with the provided path, and a slice of arguments and return output and error
 // path is the path to the command to run: e.g. /usr/bin/tmux
 // args is a slice of strings that are the arguments to the command: e.g. []string{"has-session", "-t", "test-session"}
-// sc is a boolean that determines whether to use syscall.Exec or exec.Command to run the command. I dont know what else to call it.
-func (t *TmuxCommandRunner) Run(path string, args []string, sc bool) error {
-	switch sc {
-	case true:
-		return syscall.Exec(path, args, os.Environ())
-	default:
-		return exec.Command(path, args...).Run()
-	}
+func (t *TmuxCommandRunner) Run(path string, args []string) ([]byte, error) {
+	return exec.Command(path, args...).Output()
+}
+
+// Exec is a function that executes a command with the provided path and arguments.
+// This is used to replace the current process with the new command.
+func (t *TmuxCommandRunner) Exec(path string, args []string) error {
+	return syscall.Exec(path, args, os.Environ())
 }
 
 // TmuxRunner is a struct that handles running tmux commands.
@@ -49,14 +51,21 @@ func NewTmuxRunner(runner CommandRunner, path string) *TmuxRunner {
 // HasSession is a function that checks if a session exists.
 func (t *TmuxRunner) HasSession(name string) bool {
 	return t.runner.Run(t.path, []string{"has-session", "-t", name}, false) == nil
+	if _, err := t.runner.Run(t.path, []string{"has-session", "-t", name}); err != nil {
+		return false
+	}
+	return true
 }
 
 // NewSession is a function that creates a new tmux session.
 func (t *TmuxRunner) NewSession(s *Session) error {
 	return t.runner.Run(t.path, []string{"tmux", "new-session", "-s", s.name, "-c", s.dir}, true)
+	return t.runner.Exec(t.path, []string{"tmux", "new-session", "-s", s.name, "-c", s.dir})
 }
 
 // AttachSession is a function that attaches to an existing tmux session.
 func (t *TmuxRunner) AttachSession(s *Session) error {
 	return t.runner.Run(t.path, []string{"tmux", "attach-session", "-t", s.name}, true)
+	return t.runner.Exec(t.path, []string{"tmux", "attach-session", "-t", s.name})
 }
+
