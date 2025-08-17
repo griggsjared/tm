@@ -192,7 +192,63 @@ func TestTmuxRunner_AttachSession(t *testing.T) {
 	}
 }
 
+func TestTmuxRunner_ListSessions(t *testing.T) {
+
+	tests := []struct {
+		name       string
+		wantArgs   []string
+		wantPath   string
+		wantOutput []*Session
+		crOutput   []byte
+	}{
+		{
+			name:       "list no sessions",
+			wantArgs:   []string{"list-sessions", "-F", "#{session_name}:#{session_path}"},
+			wantPath:   "/usr/bin/tmux",
+			wantOutput: []*Session{},
+			crOutput:   []byte(""),
+		},
+		{
+			name:     "list multiple sessions",
+			wantArgs: []string{"list-sessions", "-F", "#{session_name}:#{session_path}"},
+			wantPath: "/usr/bin/tmux",
+			wantOutput: []*Session{
+				{name: "session1", dir: "/path/to/session1", exists: true},
+				{name: "session2", dir: "/path/to/session2", exists: true},
+			},
+			crOutput: []byte("session1:/path/to/session1\nsession2:/path/to/session2\n"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cr := &TestCommandRunner{output: tt.crOutput}
+			runner := NewTmuxRunner(cr, "/usr/bin/tmux")
+
+			sessions := runner.ListSessions()
+
+			if len(sessions) != len(tt.wantOutput) {
+				t.Fatalf("Expected %d sessions, got %d", len(tt.wantOutput), len(sessions))
+			}
+
+			if len(sessions) > 0 {
+				for i, session := range sessions {
+					if session.name != tt.wantOutput[i].name || session.dir != tt.wantOutput[i].dir {
+						t.Fatalf("Expected session %d to be %s:%s, got %s:%s", i, tt.wantOutput[i].name, tt.wantOutput[i].dir, session.name, session.dir)
+					}
+				}
+			}
+
+			if cr.providedPath != tt.wantPath {
+				t.Fatalf("Expected path %s, got %s", tt.wantPath, cr.providedPath)
+			}
+
+			for i, wantArg := range tt.wantArgs {
+				if len(cr.providedArgs) <= i || cr.providedArgs[i] != wantArg {
+					t.Fatalf("Expected arg[%d] %s, got %v", i, wantArg, cr.providedArgs)
+				}
 			}
 		})
 	}
+
 }
