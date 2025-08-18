@@ -36,30 +36,30 @@ type SmartDirectory struct {
 	dir string
 }
 
-// SessionChecker is a interface that defines a function that checks if a session exists
-type SessionChecker interface {
-	HasSession(name string) bool
+// SessionRepository is a interface that defines a function that checks if a session exists
+type SessionRepository interface {
+	HasSession(name string) bool // HasSession checks if a session with the given name exists
 }
 
-// SessionFinder is a struct that defines a session finder
-type SessionFinder struct {
-	sessionChecker     SessionChecker
+// SessionService is a struct that defines a session finder
+type SessionService struct {
+	sessionRepository  SessionRepository
 	preDefinedSessions []PreDefinedSession
 	smartDirectories   []SmartDirectory
 }
 
-// NewSessionFinder is a constructor for the SessionFinder struct
-func NewSessionFinder(tmuxHasSession SessionChecker, preDefinedSessions []PreDefinedSession, smartDirectories []SmartDirectory) *SessionFinder {
-	return &SessionFinder{
-		sessionChecker:     tmuxHasSession,
-		preDefinedSessions: preDefinedSessions,
-		smartDirectories:   smartDirectories,
+// NewSessionService is a constructor for the SessionFinder struct
+func NewSessionService(sr SessionRepository, rds []PreDefinedSession, sd []SmartDirectory) *SessionService {
+	return &SessionService{
+		sessionRepository:  sr,
+		preDefinedSessions: rds,
+		smartDirectories:   sd,
 	}
 }
 
 // Find is a function that finds a session by name
-func (sf *SessionFinder) Find(name string) (*Session, error) {
-	session, err := sf.findExistingSession(name)
+func (ss *SessionService) Find(name string) (*Session, error) {
+	session, err := ss.findExistingSession(name)
 	if err != nil {
 		return nil, err
 	}
@@ -67,8 +67,8 @@ func (sf *SessionFinder) Find(name string) (*Session, error) {
 		return session, nil
 	}
 
-	if len(sf.preDefinedSessions) > 0 {
-		session, err = sf.findPreDefinedSession(name)
+	if len(ss.preDefinedSessions) > 0 {
+		session, err = ss.findPreDefinedSession(name)
 		if err != nil {
 			return nil, err
 		}
@@ -77,8 +77,8 @@ func (sf *SessionFinder) Find(name string) (*Session, error) {
 		}
 	}
 
-	if len(sf.smartDirectories) > 0 {
-		session, err = sf.findSmartSessionDirectories(name)
+	if len(ss.smartDirectories) > 0 {
+		session, err = ss.findSmartSessionDirectories(name)
 		if err != nil {
 			return nil, err
 		}
@@ -95,10 +95,18 @@ func (sf *SessionFinder) Find(name string) (*Session, error) {
 	return NewSession(name, cwd, false), nil
 }
 
+// findExistingSession is a function that checks if a session name matches on of any provided smart session directories
+func (ss *SessionService) findExistingSession(name string) (*Session, error) {
+	if ss.sessionRepository.HasSession(name) {
+		return NewSession(name, "", true), nil
+	}
+	return nil, nil
+}
+
 // findPreDefinedSession is a function that checks if a session name matches on of any provided pre defined sessions,
 // if the a name is not found, we check for any matching aliases
-func (sf *SessionFinder) findPreDefinedSession(name string) (*Session, error) {
-	for _, pd := range sf.preDefinedSessions {
+func (ss *SessionService) findPreDefinedSession(name string) (*Session, error) {
+	for _, pd := range ss.preDefinedSessions {
 		found := slices.Contains(nameToMatch(pd), name)
 		if !found {
 			continue
@@ -107,7 +115,7 @@ func (sf *SessionFinder) findPreDefinedSession(name string) (*Session, error) {
 		// We may have matched on an alias for al already running session
 		// if that session exists we can just return that session instead
 		// of starting a new one,
-		existing, err := sf.findExistingSession(pd.name)
+		existing, err := ss.findExistingSession(pd.name)
 		if err != nil {
 			return nil, err
 		}
@@ -129,19 +137,9 @@ func (sf *SessionFinder) findPreDefinedSession(name string) (*Session, error) {
 	return nil, nil
 }
 
-// nameToMatch is a function that returns a slice of strings that contains the name and aliases of a pre defined session
-func nameToMatch(pds PreDefinedSession) []string {
-	var names []string
-
-	names = append(names, pds.name)
-	names = append(names, pds.aliases...)
-
-	return names
-}
-
 // findSmartSessionDirectories is a function that checks if a session name matches on of any provided smart session directories
-func (sf *SessionFinder) findSmartSessionDirectories(name string) (*Session, error) {
-	for _, sd := range sf.smartDirectories {
+func (ss *SessionService) findSmartSessionDirectories(name string) (*Session, error) {
+	for _, sd := range ss.smartDirectories {
 		dir, err := expandHomeDir(fmt.Sprintf("%s/%s", sd.dir, name))
 		if err != nil {
 			return nil, err
@@ -154,12 +152,33 @@ func (sf *SessionFinder) findSmartSessionDirectories(name string) (*Session, err
 	return nil, nil
 }
 
-// findExistingSession is a function that checks if a session name matches on of any provided smart session directories
-func (sf *SessionFinder) findExistingSession(name string) (*Session, error) {
-	if sf.sessionChecker.HasSession(name) {
-		return NewSession(name, "", true), nil
+// getAllPreDefinedSessions is a function that returns all pre defined sessions, each al
+func (ss *SessionService) getAllPreDefinedSessions() []*Session {
+	var sessions []*Session
+	for _, pd := range ss.preDefinedSessions {
+		dir, err := expandHomeDir(pd.dir)
+		if err != nil {
+			fmt.Println("Error expanding home directory:", err)
+			continue
+		}
+		sessions = append(sessions, NewSession(pd.name, dir, false))
+		if len(pd.aliases) > 0 {
+			for _, alias := range pd.aliases {
+				sessions = append(sessions, NewSession(alias, dir, false))
+			}
+		}
 	}
-	return nil, nil
+	return sessions
+}
+
+// nameToMatch is a function that returns a slice of strings that contains the name and aliases of a pre defined session
+func nameToMatch(pds PreDefinedSession) []string {
+	var names []string
+
+	names = append(names, pds.name)
+	names = append(names, pds.aliases...)
+
+	return names
 }
 
 // dirExists is a function that checks if a directory exists
@@ -179,3 +198,4 @@ func expandHomeDir(path string) (string, error) {
 	}
 	return path, nil
 }
+

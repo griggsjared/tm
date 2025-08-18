@@ -8,6 +8,7 @@ import (
 
 type mockChecker struct {
 	hasSession bool
+	hasSession  bool
 }
 
 func (m *mockChecker) HasSession(name string) bool {
@@ -17,7 +18,7 @@ func (m *mockChecker) HasSession(name string) bool {
 func TestFindExistingSession(t *testing.T) {
 	t.Run("existing session found", func(t *testing.T) {
 		checker := &mockChecker{hasSession: true}
-		finder := NewSessionFinder(checker, nil, nil)
+		finder := NewSessionService(checker, nil, nil)
 
 		session, err := finder.findExistingSession("test")
 		if err != nil {
@@ -36,7 +37,7 @@ func TestFindExistingSession(t *testing.T) {
 
 	t.Run("no existing session", func(t *testing.T) {
 		checker := &mockChecker{hasSession: false}
-		finder := NewSessionFinder(checker, nil, nil)
+		finder := NewSessionService(checker, nil, nil)
 
 		session, err := finder.findExistingSession("test")
 		if err != nil {
@@ -99,7 +100,7 @@ func TestFindPreDefinedSession(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			finder := NewSessionFinder(&mockChecker{}, tt.pre, nil)
+			finder := NewSessionService(&mockChecker{}, tt.pre, nil)
 			session, err := finder.findPreDefinedSession(tt.lookup)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -174,7 +175,7 @@ func TestFindSmartSessionDirectories(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			finder := NewSessionFinder(&mockChecker{}, nil, tt.smart)
+			finder := NewSessionService(&mockChecker{}, nil, tt.smart)
 			session, err := finder.findSmartSessionDirectories(tt.lookup)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -205,7 +206,7 @@ func TestSessionFinderFind(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		checker    SessionChecker
+		checker    SessionRepository
 		pre        []PreDefinedSession
 		smart      []SmartDirectory
 		lookup     string
@@ -253,7 +254,7 @@ func TestSessionFinderFind(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			finder := NewSessionFinder(tt.checker, tt.pre, tt.smart)
+			finder := NewSessionService(tt.checker, tt.pre, tt.smart)
 			session, err := finder.Find(tt.lookup)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)

@@ -34,22 +34,22 @@ func (t *TmuxCommandRunner) Exec(path string, args []string) error {
 	return syscall.Exec(path, args, os.Environ())
 }
 
-// TmuxRunner is a struct that handles running tmux commands.
-type TmuxRunner struct {
+// TmuxRepository is a struct that handles running tmux commands.
+type TmuxRepository struct {
 	runner CommandRunner
 	path   string // path to tmux
 }
 
 // MewTmuxRunner is a constructor for the TmuxRunner struct.
-func NewTmuxRunner(runner CommandRunner, path string) *TmuxRunner {
-	return &TmuxRunner{
+func NewTmuxRepository(runner CommandRunner, path string) *TmuxRepository {
+	return &TmuxRepository{
 		runner: runner,
 		path:   path,
 	}
 }
 
 // HasSession is a function that checks if a session exists.
-func (t *TmuxRunner) HasSession(name string) bool {
+func (t *TmuxRepository) HasSession(name string) bool {
 	if _, err := t.runner.Run(t.path, []string{"has-session", "-t", name}); err != nil {
 		return false
 	}
@@ -57,17 +57,17 @@ func (t *TmuxRunner) HasSession(name string) bool {
 }
 
 // NewSession is a function that creates a new tmux session.
-func (t *TmuxRunner) NewSession(s *Session) error {
+func (t *TmuxRepository) NewSession(s *Session) error {
 	return t.runner.Exec(t.path, []string{"tmux", "new-session", "-s", s.name, "-c", s.dir})
 }
 
 // AttachSession is a function that attaches to an existing tmux session.
-func (t *TmuxRunner) AttachSession(s *Session) error {
+func (t *TmuxRepository) AttachSession(s *Session) error {
 	return t.runner.Exec(t.path, []string{"tmux", "attach-session", "-t", s.name})
 }
 
 // ListSessions is a function that lists all tmux active sessions.
-func (t *TmuxRunner) ListSessions() []*Session {
+func (t *TmuxRepository) AllSessions() []*Session {
 	var sessions []*Session
 	output, err := t.runner.Run(t.path, []string{"list-sessions", "-F", "#{session_name}:#{session_path}"})
 	if err != nil {

@@ -58,7 +58,7 @@ func TestTmuxRunner_HasSession(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cr := &TestCommandRunner{error: tt.wantErr}
-			runner := NewTmuxRunner(cr, "/usr/bin/tmux")
+			runner := NewTmuxRepository(cr, "/usr/bin/tmux")
 
 			var exists bool
 			if tt.name == "session exists" {
@@ -117,7 +117,7 @@ func TestTmuxRunner_NewSession(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cr := &TestCommandRunner{error: tt.wantErr}
-			runner := NewTmuxRunner(cr, "/usr/bin/tmux")
+			runner := NewTmuxRepository(cr, "/usr/bin/tmux")
 
 			err := runner.NewSession(tt.session)
 
@@ -171,7 +171,7 @@ func TestTmuxRunner_AttachSession(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cr := &TestCommandRunner{error: tt.wantErr}
-			runner := NewTmuxRunner(cr, "/usr/bin/tmux")
+			runner := NewTmuxRepository(cr, "/usr/bin/tmux")
 
 			err := runner.AttachSession(tt.session)
 
@@ -192,7 +192,7 @@ func TestTmuxRunner_AttachSession(t *testing.T) {
 	}
 }
 
-func TestTmuxRunner_ListSessions(t *testing.T) {
+func TestTmuxRunner_AllSessions(t *testing.T) {
 
 	tests := []struct {
 		name       string
@@ -223,9 +223,9 @@ func TestTmuxRunner_ListSessions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cr := &TestCommandRunner{output: tt.crOutput}
-			runner := NewTmuxRunner(cr, "/usr/bin/tmux")
+			runner := NewTmuxRepository(cr, "/usr/bin/tmux")
 
-			sessions := runner.ListSessions()
+			sessions := runner.AllSessions()
 
 			if len(sessions) != len(tt.wantOutput) {
 				t.Fatalf("Expected %d sessions, got %d", len(tt.wantOutput), len(sessions))
