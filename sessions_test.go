@@ -6,18 +6,22 @@ import (
 	"testing"
 )
 
-type mockChecker struct {
-	hasSession bool
+type mockSessionRespository struct {
 	hasSession  bool
+	allSessions []*Session
 }
 
-func (m *mockChecker) HasSession(name string) bool {
+func (m *mockSessionRespository) HasSession(name string) bool {
 	return m.hasSession
+}
+
+func (m *mockSessionRespository) AllSessions() []*Session {
+	return m.allSessions
 }
 
 func TestFindExistingSession(t *testing.T) {
 	t.Run("existing session found", func(t *testing.T) {
-		checker := &mockChecker{hasSession: true}
+		checker := &mockSessionRespository{hasSession: true}
 		finder := NewSessionService(checker, nil, nil)
 
 		session, err := finder.findExistingSession("test")
@@ -36,7 +40,7 @@ func TestFindExistingSession(t *testing.T) {
 	})
 
 	t.Run("no existing session", func(t *testing.T) {
-		checker := &mockChecker{hasSession: false}
+		checker := &mockSessionRespository{hasSession: false}
 		finder := NewSessionService(checker, nil, nil)
 
 		session, err := finder.findExistingSession("test")
@@ -100,7 +104,7 @@ func TestFindPreDefinedSession(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			finder := NewSessionService(&mockChecker{}, tt.pre, nil)
+			finder := NewSessionService(&mockSessionRespository{}, tt.pre, nil)
 			session, err := finder.findPreDefinedSession(tt.lookup)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -175,8 +179,8 @@ func TestFindSmartSessionDirectories(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			finder := NewSessionService(&mockChecker{}, nil, tt.smart)
-			session, err := finder.findSmartSessionDirectories(tt.lookup)
+			finder := NewSessionService(&mockSessionRespository{}, nil, tt.smart)
+			session, err := finder.findSmartSessionDirectorySession(tt.lookup)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -215,13 +219,13 @@ func TestSessionFinderFind(t *testing.T) {
 	}{
 		{
 			name:       "existing session",
-			checker:    &mockChecker{hasSession: true},
+			checker:    &mockSessionRespository{hasSession: true},
 			lookup:     "exists",
 			wantExists: true,
 		},
 		{
 			name:    "predefined session",
-			checker: &mockChecker{hasSession: false},
+			checker: &mockSessionRespository{hasSession: false},
 			pre: []PreDefinedSession{
 				{name: "predefined", dir: projectDir},
 			},
@@ -230,7 +234,7 @@ func TestSessionFinderFind(t *testing.T) {
 		},
 		{
 			name:    "predefined session that is already running and matches on alias",
-			checker: &mockChecker{hasSession: true},
+			checker: &mockSessionRespository{hasSession: true},
 			pre: []PreDefinedSession{
 				{name: "running", dir: projectDir, aliases: []string{"run"}},
 			},
@@ -239,14 +243,14 @@ func TestSessionFinderFind(t *testing.T) {
 		},
 		{
 			name:    "smart directory",
-			checker: &mockChecker{hasSession: false},
+			checker: &mockSessionRespository{hasSession: false},
 			smart:   []SmartDirectory{{dir: tmp}},
 			lookup:  "myproject",
 			wantDir: projectDir,
 		},
 		{
 			name:    "fallback to cwd",
-			checker: &mockChecker{hasSession: false},
+			checker: &mockSessionRespository{hasSession: false},
 			lookup:  "fallback",
 			wantDir: os.Getenv("PWD"),
 		},

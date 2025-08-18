@@ -39,6 +39,7 @@ type SmartDirectory struct {
 // SessionRepository is a interface that defines a function that checks if a session exists
 type SessionRepository interface {
 	HasSession(name string) bool // HasSession checks if a session with the given name exists
+	AllSessions() []*Session     // AllSessions returns all existing sessions
 }
 
 // SessionService is a struct that defines a session finder
@@ -78,7 +79,7 @@ func (ss *SessionService) Find(name string) (*Session, error) {
 	}
 
 	if len(ss.smartDirectories) > 0 {
-		session, err = ss.findSmartSessionDirectories(name)
+		session, err = ss.findSmartSessionDirectorySession(name)
 		if err != nil {
 			return nil, err
 		}
@@ -93,6 +94,37 @@ func (ss *SessionService) Find(name string) (*Session, error) {
 		return nil, err
 	}
 	return NewSession(name, cwd, false), nil
+}
+
+// List will return a slice of Sessions that are exitsing already or that are pre defined or
+func (ss *SessionService) List(onlyExisting bool) []*Session {
+	var sessions []*Session
+	sessions = ss.sessionRepository.AllSessions()
+
+	if !onlyExisting {
+		//load up all pre defined Sessions
+		for _, pd := range ss.getAllPreDefinedSessions() {
+			found := slices.ContainsFunc(sessions, func(s *Session) bool {
+				return s.name == pd.name
+			})
+
+			if !found {
+				sessions = append(sessions, pd)
+			}
+		}
+
+		//load up all smart directories
+		for _, sd := range ss.getAllSmartSessionDirectorySessions() {
+			found := slices.ContainsFunc(sessions, func(s *Session) bool {
+				return s.name == sd.name
+			})
+
+			if !found {
+				sessions = append(sessions, sd)
+			}
+		}
+	}
+	return sessions
 }
 
 // findExistingSession is a function that checks if a session name matches on of any provided smart session directories
@@ -137,8 +169,8 @@ func (ss *SessionService) findPreDefinedSession(name string) (*Session, error) {
 	return nil, nil
 }
 
-// findSmartSessionDirectories is a function that checks if a session name matches on of any provided smart session directories
-func (ss *SessionService) findSmartSessionDirectories(name string) (*Session, error) {
+// findSmartSessionDirectorySession is a function that checks if a session name matches on of any provided smart session directories
+func (ss *SessionService) findSmartSessionDirectorySession(name string) (*Session, error) {
 	for _, sd := range ss.smartDirectories {
 		dir, err := expandHomeDir(fmt.Sprintf("%s/%s", sd.dir, name))
 		if err != nil {
@@ -158,7 +190,6 @@ func (ss *SessionService) getAllPreDefinedSessions() []*Session {
 	for _, pd := range ss.preDefinedSessions {
 		dir, err := expandHomeDir(pd.dir)
 		if err != nil {
-			fmt.Println("Error expanding home directory:", err)
 			continue
 		}
 		sessions = append(sessions, NewSession(pd.name, dir, false))
@@ -168,6 +199,35 @@ func (ss *SessionService) getAllPreDefinedSessions() []*Session {
 			}
 		}
 	}
+	return sessions
+}
+
+func (ss *SessionService) getAllSmartSessionDirectorySessions() []*Session {
+	var sessions []*Session
+	for _, sd := range ss.smartDirectories {
+		dir, err := expandHomeDir(sd.dir)
+		if err != nil {
+			continue
+		}
+
+		if dirExists(dir) {
+			//all directories in the smart directory are considered a session name
+			//traverse the directory and add all directories as sessions
+			files, err := os.ReadDir(dir)
+			if err != nil {
+				continue
+			}
+
+			for _, file := range files {
+				if !file.IsDir() {
+					continue
+				}
+
+				sessions = append(sessions, NewSession(file.Name(), fmt.Sprintf("%s/%s", dir, file.Name()), false))
+			}
+		}
+	}
+
 	return sessions
 }
 
