@@ -11,24 +11,25 @@ type AppTmuxRunner interface {
 	AttachSession(s *Session) error
 }
 
-// AppSessionFinder is an interface that defines a function that finds a session by name
-type AppSessionFinder interface {
+// AppSessionService is an interface that defines a function that finds a session by name
+type AppSessionService interface {
 	Find(name string) (*Session, error)
+	List(onlyActive bool) []*Session
 }
 
 // App is a struct that defines the application and its dependencies
 type App struct {
-	debug         bool
-	tmuxRunner    AppTmuxRunner
-	sessionFinder AppSessionFinder
+	debug          bool
+	tmuxRunner     AppTmuxRunner
+	sessionService AppSessionService
 }
 
 // NewApp is a constructor for the App struct
-func NewApp(tmuxRunner AppTmuxRunner, sessionFinder AppSessionFinder, debug bool) *App {
+func NewApp(tmuxRunner AppTmuxRunner, sessionService AppSessionService, debug bool) *App {
 	return &App{
-		debug:         debug,
-		tmuxRunner:    tmuxRunner,
-		sessionFinder: sessionFinder,
+		debug:          debug,
+		tmuxRunner:     tmuxRunner,
+		sessionService: sessionService,
 	}
 }
 
@@ -42,8 +43,23 @@ func (a *App) Run() {
 		return
 	}
 
+	input := os.Args[1]
+
+	if input == "ls" || input == "list" || input == "ls-all" || input == "list-all" {
+		all := input == "ls-all" || input == "list-all"
+		for _, session := range a.sessionService.List(!all) {
+			line := fmt.Sprintf("%s (%s)", session.name, session.dir)
+			if session.exists {
+				line += "*"
+			}
+			fmt.Println(line)
+		}
+		return
+	}
+
+
 	//the input will be a session name
-	session, err := a.sessionFinder.Find(os.Args[1])
+	session, err := a.sessionService.Find(input)
 	if err != nil {
 		fmt.Println("Error finding session:", err)
 	}
