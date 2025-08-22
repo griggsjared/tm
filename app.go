@@ -51,7 +51,7 @@ func (a *App) Run() {
 	if input == "ls" || input == "list" || input == "ls-all" || input == "list-all" {
 		all := input == "ls-all" || input == "list-all"
 		for _, session := range a.sessionService.List(!all) {
-			line := fmt.Sprintf("%s (%s)", session.name, session.dir)
+			line := fmt.Sprintf("%s [%s]", session.name, session.dir)
 			if session.exists {
 				line += "*"
 			}
