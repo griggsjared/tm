@@ -45,6 +45,9 @@ func (a *App) Run() {
 
 	input := os.Args[1]
 
+	//catching some builtin commands here for now.
+	//list or ls will list all active sessions
+	//list-all or ls-all will list all possible sessions (including the active ones)
 	if input == "ls" || input == "list" || input == "ls-all" || input == "list-all" {
 		all := input == "ls-all" || input == "list-all"
 		for _, session := range a.sessionService.List(!all) {
@@ -56,7 +59,6 @@ func (a *App) Run() {
 		}
 		return
 	}
-
 
 	//the input will be a session name
 	session, err := a.sessionService.Find(input)
