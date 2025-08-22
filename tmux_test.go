@@ -37,21 +37,21 @@ func TestTmuxRunner_HasSession(t *testing.T) {
 		wantExists bool
 		wantArgs   []string
 		wantPath   string
-		wantErr  error
+		wantErr    error
 	}{
 		{
 			name:       "session exists",
 			wantExists: true,
 			wantArgs:   []string{"has-session", "-t", "test-session"},
 			wantPath:   "/usr/bin/tmux",
-			wantErr:   nil,
+			wantErr:    nil,
 		},
 		{
 			name:       "session doesn't exist",
 			wantExists: false,
 			wantArgs:   []string{"has-session", "-t", "non-existent"},
 			wantPath:   "/usr/bin/tmux",
-			wantErr:   errors.New("session not found"),
+			wantErr:    errors.New("session not found"),
 		},
 	}
 
