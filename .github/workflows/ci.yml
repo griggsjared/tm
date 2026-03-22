@@ -2,40 +2,39 @@ name: CI
 
 on:
   push:
-    branches: [ main ] 
+    branches: [ main ]
   pull_request:
     branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     name: Build and Test
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.26'
-        cache: true
-    
-    - name: Install dependencies
-      run: go mod download
-    
-    - name: Verify code formatting
-      run: |
-        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
-          echo "The following files are not formatted correctly:"
-          gofmt -s -l .
-          exit 1
-        fi
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
 
-    - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v8
-    
-    - name: Build
-      run: go build -v ./...
-    
-    - name: Test
-      run: go test -v ./... -cover
+      - name: Verify code formatting
+        run: |
+          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+            echo "The following files are not formatted correctly:"
+            gofmt -s -l .
+            exit 1
+          fi
 
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./... -cover
