@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"context"
@@ -10,18 +10,18 @@ import (
 
 	"github.com/sethvargo/go-envconfig"
 	yaml "gopkg.in/yaml.v3"
+
+	"github.com/griggsjared/tm/internal/session"
 )
 
-// Config is a struct that defines the configuration for the app
 type Config struct {
 	Debug              bool
 	TmuxPath           string
-	PreDefinedSessions []PreDefinedSession
-	SmartDirectories   []SmartDirectory
+	PreDefinedSessions []session.PreDefinedSession
+	SmartDirectories   []session.SmartDirectory
 }
 
-// NewConfig is a constructor for the Config struct
-func NewConfig(debug bool, tmuxPath string, preDefinedSessions []PreDefinedSession, smartDirectories []SmartDirectory) *Config {
+func New(debug bool, tmuxPath string, preDefinedSessions []session.PreDefinedSession, smartDirectories []session.SmartDirectory) *Config {
 	return &Config{
 		Debug:              debug,
 		TmuxPath:           tmuxPath,
@@ -30,10 +30,8 @@ func NewConfig(debug bool, tmuxPath string, preDefinedSessions []PreDefinedSessi
 	}
 }
 
-// LoadConfig loads the final configuration from various sources
-func LoadConfig() (*Config, error) {
-
-	config := NewConfig(false, "", nil, nil)
+func Load() (*Config, error) {
+	config := New(false, "", nil, nil)
 
 	envConfig, err := loadConfigFromEnv()
 	if err != nil {
@@ -55,19 +53,19 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
-	config.PreDefinedSessions = make([]PreDefinedSession, len(fileConfig.Pds))
-	for i, pd := range fileConfig.Pds {
-		config.PreDefinedSessions[i] = PreDefinedSession{
-			dir:     pd.Dir,
-			name:    pd.Name,
-			aliases: pd.Aliases,
+	config.PreDefinedSessions = make([]session.PreDefinedSession, len(fileConfig.PreDefinedSessions))
+	for i, pd := range fileConfig.PreDefinedSessions {
+		config.PreDefinedSessions[i] = session.PreDefinedSession{
+			Dir:     pd.Dir,
+			Name:    pd.Name,
+			Aliases: pd.Aliases,
 		}
 	}
 
-	config.SmartDirectories = make([]SmartDirectory, len(fileConfig.Sds))
-	for i, sd := range fileConfig.Sds {
-		config.SmartDirectories[i] = SmartDirectory{
-			dir: sd,
+	config.SmartDirectories = make([]session.SmartDirectory, len(fileConfig.SmartDirectories))
+	for i, sd := range fileConfig.SmartDirectories {
+		config.SmartDirectories[i] = session.SmartDirectory{
+			Dir: sd,
 		}
 	}
 
@@ -89,14 +87,12 @@ func LoadConfig() (*Config, error) {
 	return config, nil
 }
 
-// envConfig is a struct that defines the environment configuration
 type envConfig struct {
 	Debug      bool   `env:"TM_DEBUG"`
 	TmuxPath   string `env:"TM_TMUX_PATH"`
 	ConfigPath string `env:"TM_CONFIG_PATH"`
 }
 
-// loadConfigFromEnv loads the config from the environment variables
 func loadConfigFromEnv() (*envConfig, error) {
 	ctx := context.Background()
 	var c envConfig
@@ -107,17 +103,15 @@ func loadConfigFromEnv() (*envConfig, error) {
 	return &c, nil
 }
 
-// fileConfig is a struct that defines the file configuration
 type fileConfig struct {
-	Pds []struct {
+	PreDefinedSessions []struct {
 		Dir     string   `yaml:"dir"`
 		Name    string   `yaml:"name"`
 		Aliases []string `yaml:"aliases"`
 	} `yaml:"sessions"`
-	Sds []string `yaml:"smart_directories"`
+	SmartDirectories []string `yaml:"smart_directories"`
 }
 
-// loadConfigFromConfigFile loads the config from the config file
 func loadConfigFromConfigFile(path string, dPath string) (*fileConfig, error) {
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) && path == dPath {
@@ -151,7 +145,6 @@ func loadConfigFromConfigFile(path string, dPath string) (*fileConfig, error) {
 	return &c, nil
 }
 
-// defaultConfigPath returns the default config path
 func defaultConfigPath() (string, error) {
 	homeDir := os.Getenv("HOME")
 	if homeDir == "" {

@@ -1,4 +1,4 @@
-package main
+package session
 
 import (
 	"os"
@@ -6,49 +6,49 @@ import (
 	"testing"
 )
 
-type mockSessionRespository struct {
+type mockRepository struct {
 	hasSession  bool
 	allSessions []*Session
 }
 
-func (m *mockSessionRespository) HasSession(name string) bool {
+func (m *mockRepository) HasSession(name string) bool {
 	return m.hasSession
 }
 
-func (m *mockSessionRespository) AllSessions() []*Session {
+func (m *mockRepository) AllSessions() []*Session {
 	return m.allSessions
 }
 
 func TestFindExistingSession(t *testing.T) {
 	t.Run("existing session found", func(t *testing.T) {
-		checker := &mockSessionRespository{hasSession: true}
-		finder := NewSessionService(checker, nil, nil)
+		checker := &mockRepository{hasSession: true}
+		svc := NewService(checker, nil, nil)
 
-		session, err := finder.findExistingSession("test")
+		sess, err := svc.findExistingSession("test")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if session == nil {
+		if sess == nil {
 			t.Fatal("expected session, got nil")
 		}
-		if session.name != "test" {
-			t.Errorf("expected name test, got %s", session.name)
+		if sess.Name != "test" {
+			t.Errorf("expected name test, got %s", sess.Name)
 		}
-		if !session.exists {
+		if !sess.Exists {
 			t.Error("expected session to exist")
 		}
 	})
 
 	t.Run("no existing session", func(t *testing.T) {
-		checker := &mockSessionRespository{hasSession: false}
-		finder := NewSessionService(checker, nil, nil)
+		checker := &mockRepository{hasSession: false}
+		svc := NewService(checker, nil, nil)
 
-		session, err := finder.findExistingSession("test")
+		sess, err := svc.findExistingSession("test")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if session != nil {
-			t.Errorf("expected nil, got %v", session)
+		if sess != nil {
+			t.Errorf("expected nil, got %v", sess)
 		}
 	})
 }
@@ -69,7 +69,7 @@ func TestFindPreDefinedSession(t *testing.T) {
 		{
 			name: "match by name",
 			pre: []PreDefinedSession{
-				{name: "myapp", dir: validDir},
+				{Name: "myapp", Dir: validDir},
 			},
 			lookup:   "myapp",
 			wantName: "myapp",
@@ -78,7 +78,7 @@ func TestFindPreDefinedSession(t *testing.T) {
 		{
 			name: "match by alias",
 			pre: []PreDefinedSession{
-				{name: "myapp", dir: validDir, aliases: []string{"ma"}},
+				{Name: "myapp", Dir: validDir, Aliases: []string{"ma"}},
 			},
 			lookup:   "ma",
 			wantName: "myapp",
@@ -87,7 +87,7 @@ func TestFindPreDefinedSession(t *testing.T) {
 		{
 			name: "no match",
 			pre: []PreDefinedSession{
-				{name: "myapp", dir: validDir},
+				{Name: "myapp", Dir: validDir},
 			},
 			lookup:  "other",
 			wantNil: true,
@@ -95,7 +95,7 @@ func TestFindPreDefinedSession(t *testing.T) {
 		{
 			name: "directory does not exist",
 			pre: []PreDefinedSession{
-				{name: "myapp", dir: "/nonexistent"},
+				{Name: "myapp", Dir: "/nonexistent"},
 			},
 			lookup:  "myapp",
 			wantNil: true,
@@ -104,25 +104,25 @@ func TestFindPreDefinedSession(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			finder := NewSessionService(&mockSessionRespository{}, tt.pre, nil)
-			session, err := finder.findPreDefinedSession(tt.lookup)
+			svc := NewService(&mockRepository{}, tt.pre, nil)
+			sess, err := svc.findPreDefinedSession(tt.lookup)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			if tt.wantNil {
-				if session != nil {
-					t.Errorf("expected nil, got %v", session)
+				if sess != nil {
+					t.Errorf("expected nil, got %v", sess)
 				}
 				return
 			}
-			if session == nil {
+			if sess == nil {
 				t.Fatal("expected session, got nil")
 			}
-			if session.name != tt.wantName {
-				t.Errorf("expected name %s, got %s", tt.wantName, session.name)
+			if sess.Name != tt.wantName {
+				t.Errorf("expected name %s, got %s", tt.wantName, sess.Name)
 			}
-			if session.dir != tt.wantDir {
-				t.Errorf("expected dir %s, got %s", tt.wantDir, session.dir)
+			if sess.Dir != tt.wantDir {
+				t.Errorf("expected dir %s, got %s", tt.wantDir, sess.Dir)
 			}
 		})
 	}
@@ -130,8 +130,8 @@ func TestFindPreDefinedSession(t *testing.T) {
 
 func TestNameToMatch(t *testing.T) {
 	pds := PreDefinedSession{
-		name:    "main",
-		aliases: []string{"m", "ma"},
+		Name:    "main",
+		Aliases: []string{"m", "ma"},
 	}
 	got := nameToMatch(pds)
 	want := []string{"main", "m", "ma"}
@@ -159,19 +159,19 @@ func TestFindSmartSessionDirectories(t *testing.T) {
 	}{
 		{
 			name:    "project found",
-			smart:   []SmartDirectory{{dir: tmp}},
+			smart:   []SmartDirectory{{Dir: tmp}},
 			lookup:  "myproject",
 			wantDir: projectDir,
 		},
 		{
 			name:    "project not found",
-			smart:   []SmartDirectory{{dir: tmp}},
+			smart:   []SmartDirectory{{Dir: tmp}},
 			lookup:  "nonexistent",
 			wantNil: true,
 		},
 		{
 			name:    "multiple smart dirs",
-			smart:   []SmartDirectory{{dir: "/nonexistent"}, {dir: tmp}},
+			smart:   []SmartDirectory{{Dir: "/nonexistent"}, {Dir: tmp}},
 			lookup:  "myproject",
 			wantDir: projectDir,
 		},
@@ -179,38 +179,38 @@ func TestFindSmartSessionDirectories(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			finder := NewSessionService(&mockSessionRespository{}, nil, tt.smart)
-			session, err := finder.findSmartSessionDirectorySession(tt.lookup)
+			svc := NewService(&mockRepository{}, nil, tt.smart)
+			sess, err := svc.findSmartSessionDirectorySession(tt.lookup)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			if tt.wantNil {
-				if session != nil {
-					t.Errorf("expected nil, got %v", session)
+				if sess != nil {
+					t.Errorf("expected nil, got %v", sess)
 				}
 				return
 			}
-			if session == nil {
+			if sess == nil {
 				t.Fatal("expected session, got nil")
 			}
-			if session.name != tt.lookup {
-				t.Errorf("expected name %s, got %s", tt.lookup, session.name)
+			if sess.Name != tt.lookup {
+				t.Errorf("expected name %s, got %s", tt.lookup, sess.Name)
 			}
-			if session.dir != tt.wantDir {
-				t.Errorf("expected dir %s, got %s", tt.wantDir, session.dir)
+			if sess.Dir != tt.wantDir {
+				t.Errorf("expected dir %s, got %s", tt.wantDir, sess.Dir)
 			}
 		})
 	}
 }
 
-func TestSessionFinderFind(t *testing.T) {
+func TestServiceFind(t *testing.T) {
 	tmp := t.TempDir()
 	projectDir := filepath.Join(tmp, "myproject")
 	os.Mkdir(projectDir, 0755)
 
 	tests := []struct {
 		name       string
-		checker    SessionRepository
+		checker    Repository
 		pre        []PreDefinedSession
 		smart      []SmartDirectory
 		lookup     string
@@ -219,38 +219,38 @@ func TestSessionFinderFind(t *testing.T) {
 	}{
 		{
 			name:       "existing session",
-			checker:    &mockSessionRespository{hasSession: true},
+			checker:    &mockRepository{hasSession: true},
 			lookup:     "exists",
 			wantExists: true,
 		},
 		{
 			name:    "predefined session",
-			checker: &mockSessionRespository{hasSession: false},
+			checker: &mockRepository{hasSession: false},
 			pre: []PreDefinedSession{
-				{name: "predefined", dir: projectDir},
+				{Name: "predefined", Dir: projectDir},
 			},
 			lookup:  "predefined",
 			wantDir: projectDir,
 		},
 		{
 			name:    "predefined session that is already running and matches on alias",
-			checker: &mockSessionRespository{hasSession: true},
+			checker: &mockRepository{hasSession: true},
 			pre: []PreDefinedSession{
-				{name: "running", dir: projectDir, aliases: []string{"run"}},
+				{Name: "running", Dir: projectDir, Aliases: []string{"run"}},
 			},
 			lookup:     "run",
 			wantExists: true,
 		},
 		{
 			name:    "smart directory",
-			checker: &mockSessionRespository{hasSession: false},
-			smart:   []SmartDirectory{{dir: tmp}},
+			checker: &mockRepository{hasSession: false},
+			smart:   []SmartDirectory{{Dir: tmp}},
 			lookup:  "myproject",
 			wantDir: projectDir,
 		},
 		{
 			name:    "fallback to cwd",
-			checker: &mockSessionRespository{hasSession: false},
+			checker: &mockRepository{hasSession: false},
 			lookup:  "fallback",
 			wantDir: os.Getenv("PWD"),
 		},
@@ -258,16 +258,16 @@ func TestSessionFinderFind(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			finder := NewSessionService(tt.checker, tt.pre, tt.smart)
-			session, err := finder.Find(tt.lookup)
+			svc := NewService(tt.checker, tt.pre, tt.smart)
+			sess, err := svc.Find(tt.lookup)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if session.exists != tt.wantExists {
-				t.Errorf("expected exists=%v, got %v", tt.wantExists, session.exists)
+			if sess.Exists != tt.wantExists {
+				t.Errorf("expected exists=%v, got %v", tt.wantExists, sess.Exists)
 			}
-			if tt.wantDir != "" && session.dir != tt.wantDir {
-				t.Errorf("expected dir %s, got %s", tt.wantDir, session.dir)
+			if tt.wantDir != "" && sess.Dir != tt.wantDir {
+				t.Errorf("expected dir %s, got %s", tt.wantDir, sess.Dir)
 			}
 		})
 	}

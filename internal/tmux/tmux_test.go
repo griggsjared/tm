@@ -1,8 +1,10 @@
-package main
+package tmux
 
 import (
 	"errors"
 	"testing"
+
+	"github.com/griggsjared/tm/internal/session"
 )
 
 type TestCommandRunner struct {
@@ -24,14 +26,14 @@ func (t *TestCommandRunner) Exec(path string, args []string) error {
 	return t.error
 }
 
-func TestNewTmuxCommandRunner(t *testing.T) {
-	runner := NewTmuxCommandRunner()
+func TestNewCommandRunner(t *testing.T) {
+	runner := NewCommandRunner()
 	if runner == nil {
 		t.Fatalf("Expected a non-nil TmuxCommandRunner")
 	}
 }
 
-func TestTmuxRunner_HasSession(t *testing.T) {
+func TestRepository_HasSession(t *testing.T) {
 	tests := []struct {
 		name       string
 		wantExists bool
@@ -58,13 +60,13 @@ func TestTmuxRunner_HasSession(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cr := &TestCommandRunner{error: tt.wantErr}
-			runner := NewTmuxRepository(cr, "/usr/bin/tmux")
+			repo := NewRepository(cr, "/usr/bin/tmux")
 
 			var exists bool
 			if tt.name == "session exists" {
-				exists = runner.HasSession("test-session")
+				exists = repo.HasSession("test-session")
 			} else {
-				exists = runner.HasSession("non-existent")
+				exists = repo.HasSession("non-existent")
 			}
 
 			if exists != tt.wantExists {
@@ -84,19 +86,19 @@ func TestTmuxRunner_HasSession(t *testing.T) {
 	}
 }
 
-func TestTmuxRunner_NewSession(t *testing.T) {
+func TestRepository_NewSession(t *testing.T) {
 	tests := []struct {
 		name     string
-		session  *Session
+		sess     *session.Session
 		wantArgs []string
 		wantPath string
 		wantErr  error
 	}{
 		{
 			name: "successful session creation",
-			session: &Session{
-				name: "new-test-session",
-				dir:  "/tmp",
+			sess: &session.Session{
+				Name: "new-test-session",
+				Dir:  "/tmp",
 			},
 			wantArgs: []string{"tmux", "new-session", "-s", "new-test-session", "-c", "/tmp"},
 			wantPath: "/usr/bin/tmux",
@@ -104,9 +106,9 @@ func TestTmuxRunner_NewSession(t *testing.T) {
 		},
 		{
 			name: "failed session creation",
-			session: &Session{
-				name: "failed-session",
-				dir:  "/tmp",
+			sess: &session.Session{
+				Name: "failed-session",
+				Dir:  "/tmp",
 			},
 			wantArgs: []string{"tmux", "new-session", "-s", "failed-session", "-c", "/tmp"},
 			wantPath: "/usr/bin/tmux",
@@ -117,9 +119,9 @@ func TestTmuxRunner_NewSession(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cr := &TestCommandRunner{error: tt.wantErr}
-			runner := NewTmuxRepository(cr, "/usr/bin/tmux")
+			repo := NewRepository(cr, "/usr/bin/tmux")
 
-			err := runner.NewSession(tt.session)
+			err := repo.NewSession(tt.sess)
 
 			if err != tt.wantErr {
 				t.Fatalf("NewSession error = %v, wantErr %v", err, tt.wantErr)
@@ -138,19 +140,19 @@ func TestTmuxRunner_NewSession(t *testing.T) {
 	}
 }
 
-func TestTmuxRunner_AttachSession(t *testing.T) {
+func TestRepository_AttachSession(t *testing.T) {
 	tests := []struct {
 		name     string
-		session  *Session
+		sess     *session.Session
 		wantArgs []string
 		wantPath string
 		wantErr  error
 	}{
 		{
 			name: "successful attach session",
-			session: &Session{
-				name: "existing-session",
-				dir:  "/tmp",
+			sess: &session.Session{
+				Name: "existing-session",
+				Dir:  "/tmp",
 			},
 			wantArgs: []string{"tmux", "attach-session", "-t", "existing-session"},
 			wantPath: "/usr/bin/tmux",
@@ -158,9 +160,9 @@ func TestTmuxRunner_AttachSession(t *testing.T) {
 		},
 		{
 			name: "failed attach session",
-			session: &Session{
-				name: "non-existing-session",
-				dir:  "/tmp",
+			sess: &session.Session{
+				Name: "non-existing-session",
+				Dir:  "/tmp",
 			},
 			wantArgs: []string{"tmux", "attach-session", "-t", "non-existing-session"},
 			wantPath: "/usr/bin/tmux",
@@ -171,9 +173,9 @@ func TestTmuxRunner_AttachSession(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cr := &TestCommandRunner{error: tt.wantErr}
-			runner := NewTmuxRepository(cr, "/usr/bin/tmux")
+			repo := NewRepository(cr, "/usr/bin/tmux")
 
-			err := runner.AttachSession(tt.session)
+			err := repo.AttachSession(tt.sess)
 
 			if err != tt.wantErr {
 				t.Fatalf("AttachSession error = %v, wantErr %v", err, tt.wantErr)
@@ -192,29 +194,28 @@ func TestTmuxRunner_AttachSession(t *testing.T) {
 	}
 }
 
-func TestTmuxRunner_AllSessions(t *testing.T) {
-
+func TestRepository_AllSessions(t *testing.T) {
 	tests := []struct {
 		name       string
 		wantArgs   []string
 		wantPath   string
-		wantOutput []*Session
+		wantOutput []*session.Session
 		crOutput   []byte
 	}{
 		{
 			name:       "list no sessions",
 			wantArgs:   []string{"list-sessions", "-F", "#{session_name}:#{session_path}"},
 			wantPath:   "/usr/bin/tmux",
-			wantOutput: []*Session{},
+			wantOutput: []*session.Session{},
 			crOutput:   []byte(""),
 		},
 		{
 			name:     "list multiple sessions",
 			wantArgs: []string{"list-sessions", "-F", "#{session_name}:#{session_path}"},
 			wantPath: "/usr/bin/tmux",
-			wantOutput: []*Session{
-				{name: "session1", dir: "/path/to/session1", exists: true},
-				{name: "session2", dir: "/path/to/session2", exists: true},
+			wantOutput: []*session.Session{
+				{Name: "session1", Dir: "/path/to/session1", Exists: true},
+				{Name: "session2", Dir: "/path/to/session2", Exists: true},
 			},
 			crOutput: []byte("session1:/path/to/session1\nsession2:/path/to/session2\n"),
 		},
@@ -223,18 +224,18 @@ func TestTmuxRunner_AllSessions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cr := &TestCommandRunner{output: tt.crOutput}
-			runner := NewTmuxRepository(cr, "/usr/bin/tmux")
+			repo := NewRepository(cr, "/usr/bin/tmux")
 
-			sessions := runner.AllSessions()
+			sessions := repo.AllSessions()
 
 			if len(sessions) != len(tt.wantOutput) {
 				t.Fatalf("Expected %d sessions, got %d", len(tt.wantOutput), len(sessions))
 			}
 
 			if len(sessions) > 0 {
-				for i, session := range sessions {
-					if session.name != tt.wantOutput[i].name || session.dir != tt.wantOutput[i].dir {
-						t.Fatalf("Expected session %d to be %s:%s, got %s:%s", i, tt.wantOutput[i].name, tt.wantOutput[i].dir, session.name, session.dir)
+				for i, sess := range sessions {
+					if sess.Name != tt.wantOutput[i].Name || sess.Dir != tt.wantOutput[i].Dir {
+						t.Fatalf("Expected session %d to be %s:%s, got %s:%s", i, tt.wantOutput[i].Name, tt.wantOutput[i].Dir, sess.Name, sess.Dir)
 					}
 				}
 			}
@@ -250,5 +251,4 @@ func TestTmuxRunner_AllSessions(t *testing.T) {
 			}
 		})
 	}
-
 }
