@@ -10,11 +10,18 @@ import (
 	"github.com/griggsjared/tm/internal/tmux"
 )
 
+var version = "dev"
+
 func main() {
 	os.Exit(run())
 }
 
 func run() int {
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		fmt.Println("tm version", version)
+		return 0
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Println("Error loading config:", err)
