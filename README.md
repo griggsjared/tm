@@ -35,7 +35,7 @@ TM loads its configuration from both environment variables and a YAML config fil
 ### Environment Variables
 
 - `TM_DEBUG`: Enable debug mode (`true` or `false`). Defaults to `false`. Used to show extra debug information.
-- `TM_TMUX_PATH`: Path to the tmux binary. Defualt to `tmux` found in your path.
+- `TM_TMUX_PATH`: Path to the tmux binary. Defaults to `tmux` found in your path.
 - `TM_CONFIG_PATH`: Path to the config file. Defaults to `~/.config/tm/config.yaml`.
 
 ### Config File
@@ -63,4 +63,33 @@ smart_directories:
   - ~/projects
   - ~/work
   - ~/school
+```
+
+## Development
+
+```
+make test    # Run tests with coverage
+make build   # Build the binary
+make lint    # Run linter
+make fmt     # Format code
+```
+
+### Project Structure
+
+```
+tm/
+├── main.go              # Entry point and wiring
+├── Makefile             # Development commands
+├── internal/
+│   ├── app/             # Application logic and Run()
+│   ├── config/          # Configuration loading
+│   ├── session/          # Session domain (Session, Service, Repository)
+│   └── tmux/            # Tmux integration (TmuxCommander interface)
+```
+
+### Building from Source
+
+```bash
+make build
+./tm
 ```
