@@ -81,10 +81,10 @@ tm/
 ├── main.go              # Entry point and wiring
 ├── Makefile             # Development commands
 ├── internal/
-│   ├── app/             # Application logic and Run()
+│   ├── app/             # Application wrapper
 │   ├── config/          # Configuration loading
-│   ├── session/          # Session domain (Session, Service, Repository)
-│   └── tmux/            # Tmux integration (TmuxCommander interface)
+│   ├── session/         # Session domain
+│   └── tmux/            # Tmux integration
 ```
 
 ### Building from Source
