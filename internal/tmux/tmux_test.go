@@ -14,7 +14,7 @@ type TestRunner struct {
 	providedArgs []string
 }
 
-func (t *TestRunner) Run(path string, args []string) ([]byte, error) {
+func (t *TestRunner) Output(path string, args []string) ([]byte, error) {
 	t.providedPath = path
 	t.providedArgs = args
 	return t.output, t.error

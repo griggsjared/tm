@@ -11,7 +11,7 @@ import (
 
 // Runner defines an interface for running and executing tmux commands.
 type Runner interface {
-	Run(path string, args []string) ([]byte, error)
+	Output(path string, args []string) ([]byte, error)
 	Exec(path string, args []string) error
 }
 
@@ -23,8 +23,8 @@ func NewRunner() *TmuxRunner {
 	return &TmuxRunner{}
 }
 
-// Run executes a tmux command and returns its output or an error if the command fails.
-func (t *TmuxRunner) Run(path string, args []string) ([]byte, error) {
+// Output executes a tmux command and returns its output or an error if the command fails.
+func (t *TmuxRunner) Output(path string, args []string) ([]byte, error) {
 	return exec.Command(path, args...).Output()
 }
 
@@ -49,7 +49,7 @@ func NewRepository(r Runner, path string) *Repository {
 
 // HasSession checks if a tmux session with the given name exists.
 func (t *Repository) HasSession(name string) bool {
-	if _, err := t.runner.Run(t.path, []string{"has-session", "-t", name}); err != nil {
+	if _, err := t.runner.Output(t.path, []string{"has-session", "-t", name}); err != nil {
 		return false
 	}
 	return true
@@ -68,7 +68,7 @@ func (t *Repository) AttachSession(s *session.Session) error {
 // AllSessions retrieves all tmux sessions and returns them as a slice of Session pointers.
 func (t *Repository) AllSessions() []*session.Session {
 	var sessions []*session.Session
-	output, err := t.runner.Run(t.path, []string{"list-sessions", "-F", "#{session_name}:#{session_path}"})
+	output, err := t.runner.Output(t.path, []string{"list-sessions", "-F", "#{session_name}:#{session_path}"})
 	if err != nil {
 		return sessions
 	}

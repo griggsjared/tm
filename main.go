@@ -28,8 +28,8 @@ func run() int {
 		return 1
 	}
 
-	cmdRunner := tmux.NewCommandRunner()
-	tmuxRepo := tmux.NewRepository(cmdRunner, cfg.TmuxPath)
+	tmuxRunner := tmux.NewRunner()
+	tmuxRepo := tmux.NewRepository(tmuxRunner, cfg.TmuxPath)
 	sessionService := session.NewService(tmuxRepo, cfg.PreDefinedSessions, cfg.SmartDirectories)
 
 	app.New(
