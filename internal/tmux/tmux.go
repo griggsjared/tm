@@ -9,33 +9,33 @@ import (
 	"github.com/griggsjared/tm/internal/session"
 )
 
-type CommandRunner interface {
+type Runner interface {
 	Run(path string, args []string) ([]byte, error)
 	Exec(path string, args []string) error
 }
 
-type TmuxCommandRunner struct{}
+type TmuxRunner struct{}
 
-func NewCommandRunner() *TmuxCommandRunner {
-	return &TmuxCommandRunner{}
+func NewRunner() *TmuxRunner {
+	return &TmuxRunner{}
 }
 
-func (t *TmuxCommandRunner) Run(path string, args []string) ([]byte, error) {
+func (t *TmuxRunner) Run(path string, args []string) ([]byte, error) {
 	return exec.Command(path, args...).Output()
 }
 
-func (t *TmuxCommandRunner) Exec(path string, args []string) error {
+func (t *TmuxRunner) Exec(path string, args []string) error {
 	return syscall.Exec(path, args, os.Environ())
 }
 
 type Repository struct {
-	runner CommandRunner
+	runner Runner
 	path   string
 }
 
-func NewRepository(runner CommandRunner, path string) *Repository {
+func NewRepository(r Runner, path string) *Repository {
 	return &Repository{
-		runner: runner,
+		runner: r,
 		path:   path,
 	}
 }

@@ -7,27 +7,27 @@ import (
 	"github.com/griggsjared/tm/internal/session"
 )
 
-type TestCommandRunner struct {
+type TestRunner struct {
 	output       []byte
 	error        error
 	providedPath string
 	providedArgs []string
 }
 
-func (t *TestCommandRunner) Run(path string, args []string) ([]byte, error) {
+func (t *TestRunner) Run(path string, args []string) ([]byte, error) {
 	t.providedPath = path
 	t.providedArgs = args
 	return t.output, t.error
 }
 
-func (t *TestCommandRunner) Exec(path string, args []string) error {
+func (t *TestRunner) Exec(path string, args []string) error {
 	t.providedPath = path
 	t.providedArgs = args
 	return t.error
 }
 
-func TestNewCommandRunner(t *testing.T) {
-	runner := NewCommandRunner()
+func TestNewRunner(t *testing.T) {
+	runner := NewRunner()
 	if runner == nil {
 		t.Fatalf("Expected a non-nil TmuxCommandRunner")
 	}
@@ -59,7 +59,7 @@ func TestRepository_HasSession(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cr := &TestCommandRunner{error: tt.wantErr}
+			cr := &TestRunner{error: tt.wantErr}
 			repo := NewRepository(cr, "/usr/bin/tmux")
 
 			var exists bool
@@ -118,7 +118,7 @@ func TestRepository_NewSession(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cr := &TestCommandRunner{error: tt.wantErr}
+			cr := &TestRunner{error: tt.wantErr}
 			repo := NewRepository(cr, "/usr/bin/tmux")
 
 			err := repo.NewSession(tt.sess)
@@ -172,7 +172,7 @@ func TestRepository_AttachSession(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cr := &TestCommandRunner{error: tt.wantErr}
+			cr := &TestRunner{error: tt.wantErr}
 			repo := NewRepository(cr, "/usr/bin/tmux")
 
 			err := repo.AttachSession(tt.sess)
@@ -223,7 +223,7 @@ func TestRepository_AllSessions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cr := &TestCommandRunner{output: tt.crOutput}
+			cr := &TestRunner{output: tt.crOutput}
 			repo := NewRepository(cr, "/usr/bin/tmux")
 
 			sessions := repo.AllSessions()
