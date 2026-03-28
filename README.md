@@ -1,13 +1,13 @@
 # TM - Tmux Session Manager
 
-A smart tmux session manager that helps you create and attach to tmux sessions quickly.
+A smart tmux session manager with fuzzy-finding support.
 
 ## Features
 
+- **Fuzzy finding** with fzf integration for quick session selection
 - Automatically finds and attaches to existing tmux sessions
-- Support for pre-defined sessions
+- Support for pre-defined sessions with aliases
 - Smart directory matching for project-based sessions
-- Falls back to creating sessions in the current directory
 - Simple command-line interface
 
 ## Installation
@@ -16,33 +16,40 @@ A smart tmux session manager that helps you create and attach to tmux sessions q
 go install github.com/griggsjared/tm@latest
 ```
 
+**Optional dependency:** [fzf](https://github.com/junegunn/fzf) for fuzzy-finding. Install it for the best experience.
+
 ## Usage
 
-```
-tm session-name
+### Quick start
+
+```bash
+tm              # Opens fzf with all available sessions
+tm session-name # Exact match or fuzzy search
+tm ls           # List active sessions
+tm ls-all       # List all sessions (including pre-defined)
 ```
 
-The application will:
-1. Look for existing sessions with the provided name
-2. Check pre-defined sessions configuration
-3. Search smart directory configurations for matching projects
-4. Create a new session in the current directory if nothing matches
+### How it works
+
+1. **Exact match**: If you provide a session name and it exists, attaches immediately
+2. **Single partial match**: If only one session matches your input, attaches immediately
+3. **Multiple matches**: Opens fzf with matching sessions for you to select
+4. **No matches**: Opens fzf with all sessions, or prints list if fzf unavailable
 
 ## Configuration
 
-TM loads its configuration from both environment variables and a YAML config file.
+TM loads configuration from environment variables and a YAML config file.
 
 ### Environment Variables
 
-- `TM_DEBUG`: Enable debug mode (`true` or `false`). Defaults to `false`. Used to show extra debug information.
-- `TM_TMUX_PATH`: Path to the tmux binary. Defaults to `tmux` found in your path.
+- `TM_DEBUG`: Enable debug mode (`true` or `false`). Defaults to `false`.
+- `TM_TMUX_PATH`: Path to the tmux binary. Defaults to `tmux` in PATH.
+- `TM_FZF_PATH`: Path to the fzf binary. Defaults to `fzf` in PATH.
 - `TM_CONFIG_PATH`: Path to the config file. Defaults to `~/.config/tm/config.yaml`.
 
 ### Config File
 
-The config file is a YAML file located at `~/.config/tm/config.yaml` by default. It defines pre-defined sessions and smart directories.
-
-#### Example config:
+Located at `~/.config/tm/config.yaml` by default.
 
 ```yaml
 sessions:
@@ -81,11 +88,19 @@ tm/
 ├── main.go              # Entry point and wiring
 ├── Makefile             # Development commands
 ├── internal/
-│   ├── app/             # Application wrapper
+│   ├── app/             # Application orchestration
 │   ├── config/          # Configuration loading
-│   ├── session/         # Session domain
-│   └── tmux/            # Tmux integration
+│   ├── fzf/             # Fuzzy finding integration
+│   ├── session/         # Session domain (Finder)
+│   └── tmux/            # Tmux client
 ```
+
+### Architecture
+
+- **app**: Orchestrates the flow - handles fuzzy selection, filtering, and tmux operations
+- **session.Finder**: Discovers sessions from multiple sources (tmux, pre-defined, smart directories)
+- **tmux.Client**: Low-level tmux operations (create, attach, check existence)
+- **fzf**: Fuzzy finding integration (optional)
 
 ### Building from Source
 
