@@ -58,17 +58,7 @@ func (a *App) Run() {
 
 	input := os.Args[1]
 
-	// TODO: refactor to switch statement
-	// Builtin commands
-	if input == "ls" || input == "list" || input == "ls-all" || input == "list-all" {
-		all := input == "ls-all" || input == "list-all"
-		for _, s := range a.sessionFinder.List(!all) {
-			line := fmt.Sprintf("%s [%s]", s.Name, s.Dir)
-			if s.Exists {
-				line += "*"
-			}
-			fmt.Println(line)
-		}
+	if a.handleBuiltinCommand(input) {
 		return
 	}
 
@@ -176,6 +166,28 @@ func (a *App) attachToSession(s *session.Session) error {
 func (a *App) debugMsg(msg string) {
 	if a.debug {
 		fmt.Println(msg)
+	}
+}
+
+func (a *App) handleBuiltinCommand(input string) bool {
+	switch input {
+	case "ls", "list":
+		a.printSessionList(true)
+		return true
+	case "ls-all", "list-all":
+		a.printSessionList(false)
+		return true
+	}
+	return false
+}
+
+func (a *App) printSessionList(onlyExisting bool) {
+	for _, s := range a.sessionFinder.List(onlyExisting) {
+		line := fmt.Sprintf("%s [%s]", s.Name, s.Dir)
+		if s.Exists {
+			line += "*"
+		}
+		fmt.Println(line)
 	}
 }
 
