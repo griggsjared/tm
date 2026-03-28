@@ -17,6 +17,7 @@ import (
 type Config struct {
 	Debug              bool
 	TmuxPath           string
+	FzfPath            string
 	PreDefinedSessions []session.PreDefinedSession
 	SmartDirectories   []session.SmartDirectory
 }
@@ -84,12 +85,21 @@ func Load() (*Config, error) {
 		config.TmuxPath = tmuxPath
 	}
 
+	config.FzfPath = envConfig.FzfPath
+
+	if config.FzfPath != "" {
+		if _, err := os.Stat(config.FzfPath); err != nil {
+			return nil, fmt.Errorf("fzf path does not exist: %w", err)
+		}
+	}
+
 	return config, nil
 }
 
 type envConfig struct {
 	Debug      bool   `env:"TM_DEBUG"`
 	TmuxPath   string `env:"TM_TMUX_PATH"`
+	FzfPath    string `env:"TM_FZF_PATH"`
 	ConfigPath string `env:"TM_CONFIG_PATH"`
 }
 

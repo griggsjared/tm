@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/griggsjared/tm/internal/session"
 )
@@ -12,36 +13,56 @@ type TmuxRunner interface {
 	AttachSession(s *session.Session) error
 }
 
-type SessionService interface {
+type SessionFinder interface {
 	Find(name string) (*session.Session, error)
 	List(onlyActive bool) []*session.Session
 }
 
-type App struct {
-	debug          bool
-	tmuxRunner     TmuxRunner
-	sessionService SessionService
+type FzfRunner interface {
+	IsAvailable() bool
+	Select(items []string, query string) (string, bool, error)
 }
 
-func New(tr TmuxRunner, ss SessionService, debug bool) *App {
+type App struct {
+	debug         bool
+	tmuxRunner    TmuxRunner
+	sessionFinder SessionFinder
+	fzfRunner     FzfRunner
+}
+
+func New(tr TmuxRunner, ss SessionFinder, fr FzfRunner, debug bool) *App {
 	return &App{
-		debug:          debug,
-		tmuxRunner:     tr,
-		sessionService: ss,
+		debug:         debug,
+		tmuxRunner:    tr,
+		sessionFinder: ss,
+		fzfRunner:     fr,
 	}
 }
 
 func (a *App) Run() {
+	// No arguments: select from all sessions
 	if len(os.Args) < 2 {
-		fmt.Println("Please provide a session name")
+		sessions := a.sessionFinder.List(false)
+		selected, err := a.selectSession(sessions, "")
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+		if selected != nil {
+			if err := a.attachToSession(selected); err != nil {
+				fmt.Println(err)
+			}
+		}
 		return
 	}
 
 	input := os.Args[1]
 
+	// TODO: refactor to switch statement
+	// Builtin commands
 	if input == "ls" || input == "list" || input == "ls-all" || input == "list-all" {
 		all := input == "ls-all" || input == "list-all"
-		for _, s := range a.sessionService.List(!all) {
+		for _, s := range a.sessionFinder.List(!all) {
 			line := fmt.Sprintf("%s [%s]", s.Name, s.Dir)
 			if s.Exists {
 				line += "*"
@@ -51,30 +72,123 @@ func (a *App) Run() {
 		return
 	}
 
-	s, err := a.sessionService.Find(input)
+	// Try exact match first
+	session, err := a.sessionFinder.Find(input)
 	if err != nil {
 		fmt.Println("Error finding session:", err)
+		return
+	}
+	if session != nil {
+		if err := a.attachToSession(session); err != nil {
+			fmt.Println(err)
+		}
+		return
 	}
 
-	a.debugMsg(fmt.Sprintf("Session: %s, dir: %s, exists: %t", s.Name, s.Dir, s.Exists))
+	// No exact match - filter by partial
+	allSessions := a.sessionFinder.List(false)
+	matches := filterSessions(allSessions, input)
 
-	if !s.Exists {
-		a.debugMsg(fmt.Sprintf("Creating new session: %s and setting cwd to %s", s.Name, s.Dir))
-		err = a.tmuxRunner.NewSession(s)
+	if len(matches) == 1 {
+		// Single partial match - attach directly
+		if err := a.attachToSession(matches[0]); err != nil {
+			fmt.Println(err)
+		}
+		return
+	}
+
+	// 0 or >1 matches - need selection
+	selected, err := a.selectSession(matches, input)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	if selected != nil {
+		if err := a.attachToSession(selected); err != nil {
+			fmt.Println(err)
+		}
+	}
+}
+
+func (a *App) selectSession(sessions []*session.Session, query string) (*session.Session, error) {
+	if len(sessions) == 0 {
+		if query == "" {
+			fmt.Println("No sessions available")
+		} else {
+			fmt.Printf("No sessions matching %q\n", query)
+		}
+		return nil, nil
+	}
+
+	if a.fzfRunner.IsAvailable() {
+		// Format for fzf: name\tpath
+		items := make([]string, len(sessions))
+		for i, s := range sessions {
+			items[i] = fmt.Sprintf("%s\t%s", s.Name, s.Dir)
+		}
+
+		selected, ok, err := a.fzfRunner.Select(items, query)
 		if err != nil {
-			fmt.Println("Error creating session:", err)
+			return nil, err
+		}
+		if !ok {
+			return nil, nil // user cancelled
+		}
+
+		// Parse selection: extract name from first field
+		name := strings.Split(selected, "\t")[0]
+		for _, s := range sessions {
+			if s.Name == name {
+				return s, nil
+			}
+		}
+		return nil, fmt.Errorf("selected session not found: %s", name)
+	}
+
+	// No fzf - print list
+	fmt.Println("Available sessions:")
+	for _, s := range sessions {
+		line := fmt.Sprintf("  %s [%s]", s.Name, s.Dir)
+		if s.Exists {
+			line += " *"
+		}
+		fmt.Println(line)
+	}
+	fmt.Printf("\nProvide a more specific name (query: %q)\n", query)
+	return nil, nil
+}
+
+func (a *App) attachToSession(s *session.Session) error {
+	if !s.Exists {
+		a.debugMsg(fmt.Sprintf("Creating new session: %s", s.Name))
+		if err := a.tmuxRunner.NewSession(s); err != nil {
+			return fmt.Errorf("error creating session: %w", err)
 		}
 	}
 
 	a.debugMsg(fmt.Sprintf("Attaching to session: %s", s.Name))
-	err = a.tmuxRunner.AttachSession(s)
-	if err != nil {
-		fmt.Println("Error attaching to session:", err)
+	if err := a.tmuxRunner.AttachSession(s); err != nil {
+		return fmt.Errorf("error attaching to session: %w", err)
 	}
+	return nil
 }
 
 func (a *App) debugMsg(msg string) {
 	if a.debug {
 		fmt.Println(msg)
 	}
+}
+
+func filterSessions(sessions []*session.Session, query string) []*session.Session {
+	if query == "" {
+		return sessions
+	}
+	query = strings.ToLower(query)
+	var matches []*session.Session
+	for _, s := range sessions {
+		if strings.Contains(strings.ToLower(s.Name), query) {
+			matches = append(matches, s)
+		}
+	}
+	return matches
 }

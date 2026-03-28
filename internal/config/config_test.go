@@ -29,6 +29,9 @@ func TestNew(t *testing.T) {
 	if cfg.TmuxPath != "/usr/bin/tmux" {
 		t.Errorf("expected TmuxPath /usr/bin/tmux, got %s", cfg.TmuxPath)
 	}
+	if cfg.FzfPath != "" {
+		t.Errorf("expected FzfPath empty, got %s", cfg.FzfPath)
+	}
 
 	_ = pds
 	_ = sd
@@ -57,6 +60,7 @@ func TestLoadConfigFromEnv(t *testing.T) {
 		envVars    map[string]string
 		wantDebug  bool
 		wantTmux   string
+		wantFzf    string
 		wantConfig string
 	}{
 		{
@@ -64,6 +68,7 @@ func TestLoadConfigFromEnv(t *testing.T) {
 			envVars:    map[string]string{},
 			wantDebug:  false,
 			wantTmux:   "",
+			wantFzf:    "",
 			wantConfig: "",
 		},
 		{
@@ -71,11 +76,23 @@ func TestLoadConfigFromEnv(t *testing.T) {
 			envVars: map[string]string{
 				"TM_DEBUG":       "true",
 				"TM_TMUX_PATH":   "/usr/bin/tmux",
+				"TM_FZF_PATH":    "/usr/bin/fzf",
 				"TM_CONFIG_PATH": "/custom/config.yaml",
 			},
 			wantDebug:  true,
 			wantTmux:   "/usr/bin/tmux",
+			wantFzf:    "/usr/bin/fzf",
 			wantConfig: "/custom/config.yaml",
+		},
+		{
+			name: "only fzf path set",
+			envVars: map[string]string{
+				"TM_FZF_PATH": "/opt/fzf/bin/fzf",
+			},
+			wantDebug:  false,
+			wantTmux:   "",
+			wantFzf:    "/opt/fzf/bin/fzf",
+			wantConfig: "",
 		},
 	}
 
@@ -107,6 +124,9 @@ func TestLoadConfigFromEnv(t *testing.T) {
 			}
 			if cfg.TmuxPath != tt.wantTmux {
 				t.Errorf("TmuxPath = %s, want %s", cfg.TmuxPath, tt.wantTmux)
+			}
+			if cfg.FzfPath != tt.wantFzf {
+				t.Errorf("FzfPath = %s, want %s", cfg.FzfPath, tt.wantFzf)
 			}
 			if cfg.ConfigPath != tt.wantConfig {
 				t.Errorf("ConfigPath = %s, want %s", cfg.ConfigPath, tt.wantConfig)
@@ -207,6 +227,26 @@ func TestLoad(t *testing.T) {
 		_, err := Load()
 		if err == nil {
 			t.Error("expected error for nonexistent tmux path")
+		}
+	})
+
+	t.Run("fzf path validation fails", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "config.yaml")
+		os.WriteFile(configPath, []byte(""), 0644)
+
+		// Set invalid fzf path
+		oldFzf := os.Getenv("TM_FZF_PATH")
+		os.Setenv("TM_FZF_PATH", "/nonexistent/fzf")
+		defer os.Setenv("TM_FZF_PATH", oldFzf)
+
+		oldConfig := os.Getenv("TM_CONFIG_PATH")
+		os.Setenv("TM_CONFIG_PATH", configPath)
+		defer os.Setenv("TM_CONFIG_PATH", oldConfig)
+
+		_, err := Load()
+		if err == nil {
+			t.Error("expected error for nonexistent fzf path")
 		}
 	})
 }

@@ -33,7 +33,7 @@ func TestNewRunner(t *testing.T) {
 	}
 }
 
-func TestRepository_HasSession(t *testing.T) {
+func TestClient_HasSession(t *testing.T) {
 	tests := []struct {
 		name       string
 		wantExists bool
@@ -60,13 +60,13 @@ func TestRepository_HasSession(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cr := &TestRunner{error: tt.wantErr}
-			repo := NewRepository(cr, "/usr/bin/tmux")
+			client := NewClient(cr, "/usr/bin/tmux")
 
 			var exists bool
 			if tt.name == "session exists" {
-				exists = repo.HasSession("test-session")
+				exists = client.HasSession("test-session")
 			} else {
-				exists = repo.HasSession("non-existent")
+				exists = client.HasSession("non-existent")
 			}
 
 			if exists != tt.wantExists {
@@ -86,7 +86,7 @@ func TestRepository_HasSession(t *testing.T) {
 	}
 }
 
-func TestRepository_NewSession(t *testing.T) {
+func TestClient_NewSession(t *testing.T) {
 	tests := []struct {
 		name     string
 		sess     *session.Session
@@ -119,9 +119,9 @@ func TestRepository_NewSession(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cr := &TestRunner{error: tt.wantErr}
-			repo := NewRepository(cr, "/usr/bin/tmux")
+			client := NewClient(cr, "/usr/bin/tmux")
 
-			err := repo.NewSession(tt.sess)
+			err := client.NewSession(tt.sess)
 
 			if err != tt.wantErr {
 				t.Fatalf("NewSession error = %v, wantErr %v", err, tt.wantErr)
@@ -140,7 +140,7 @@ func TestRepository_NewSession(t *testing.T) {
 	}
 }
 
-func TestRepository_AttachSession(t *testing.T) {
+func TestClient_AttachSession(t *testing.T) {
 	tests := []struct {
 		name     string
 		sess     *session.Session
@@ -173,9 +173,9 @@ func TestRepository_AttachSession(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cr := &TestRunner{error: tt.wantErr}
-			repo := NewRepository(cr, "/usr/bin/tmux")
+			client := NewClient(cr, "/usr/bin/tmux")
 
-			err := repo.AttachSession(tt.sess)
+			err := client.AttachSession(tt.sess)
 
 			if err != tt.wantErr {
 				t.Fatalf("AttachSession error = %v, wantErr %v", err, tt.wantErr)
@@ -194,7 +194,7 @@ func TestRepository_AttachSession(t *testing.T) {
 	}
 }
 
-func TestRepository_AllSessions(t *testing.T) {
+func TestClient_AllSessions(t *testing.T) {
 	tests := []struct {
 		name       string
 		wantArgs   []string
@@ -224,9 +224,9 @@ func TestRepository_AllSessions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cr := &TestRunner{output: tt.crOutput}
-			repo := NewRepository(cr, "/usr/bin/tmux")
+			client := NewClient(cr, "/usr/bin/tmux")
 
-			sessions := repo.AllSessions()
+			sessions := client.AllSessions()
 
 			if len(sessions) != len(tt.wantOutput) {
 				t.Fatalf("Expected %d sessions, got %d", len(tt.wantOutput), len(sessions))

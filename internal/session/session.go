@@ -31,27 +31,27 @@ type SmartDirectory struct {
 	Dir string
 }
 
-type Repository interface {
+type TmuxRepository interface {
 	HasSession(name string) bool
 	AllSessions() []*Session
 }
 
-type Service struct {
-	repository         Repository
+type Finder struct {
+	repository         TmuxRepository
 	preDefinedSessions []PreDefinedSession
 	smartDirectories   []SmartDirectory
 }
 
-func NewService(r Repository, pds []PreDefinedSession, sd []SmartDirectory) *Service {
-	return &Service{
+func NewFinder(r TmuxRepository, pds []PreDefinedSession, sd []SmartDirectory) *Finder {
+	return &Finder{
 		repository:         r,
 		preDefinedSessions: pds,
 		smartDirectories:   sd,
 	}
 }
 
-func (ss *Service) Find(name string) (*Session, error) {
-	session, err := ss.findExistingSession(name)
+func (f *Finder) Find(name string) (*Session, error) {
+	session, err := f.findExistingSession(name)
 	if err != nil {
 		return nil, err
 	}
@@ -59,8 +59,8 @@ func (ss *Service) Find(name string) (*Session, error) {
 		return session, nil
 	}
 
-	if len(ss.preDefinedSessions) > 0 {
-		session, err = ss.findPreDefinedSession(name)
+	if len(f.preDefinedSessions) > 0 {
+		session, err = f.findPreDefinedSession(name)
 		if err != nil {
 			return nil, err
 		}
@@ -69,8 +69,8 @@ func (ss *Service) Find(name string) (*Session, error) {
 		}
 	}
 
-	if len(ss.smartDirectories) > 0 {
-		session, err = ss.findSmartSessionDirectorySession(name)
+	if len(f.smartDirectories) > 0 {
+		session, err = f.findSmartSessionDirectorySession(name)
 		if err != nil {
 			return nil, err
 		}
@@ -79,20 +79,15 @@ func (ss *Service) Find(name string) (*Session, error) {
 		}
 	}
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		fmt.Println("Error getting current working directory:", err)
-		return nil, err
-	}
-	return New(name, cwd, false), nil
+	return nil, nil
 }
 
-func (ss *Service) List(onlyExisting bool) []*Session {
+func (f *Finder) List(onlyExisting bool) []*Session {
 	var sessions []*Session
-	sessions = ss.repository.AllSessions()
+	sessions = f.repository.AllSessions()
 
 	if !onlyExisting {
-		for _, pd := range ss.getAllPreDefinedSessions() {
+		for _, pd := range f.getAllPreDefinedSessions() {
 			found := slices.ContainsFunc(sessions, func(s *Session) bool {
 				return s.Name == pd.Name
 			})
@@ -102,7 +97,7 @@ func (ss *Service) List(onlyExisting bool) []*Session {
 			}
 		}
 
-		for _, sd := range ss.getAllSmartSessionDirectorySessions() {
+		for _, sd := range f.getAllSmartSessionDirectorySessions() {
 			found := slices.ContainsFunc(sessions, func(s *Session) bool {
 				return s.Name == sd.Name
 			})
@@ -115,21 +110,21 @@ func (ss *Service) List(onlyExisting bool) []*Session {
 	return sessions
 }
 
-func (ss *Service) findExistingSession(name string) (*Session, error) {
-	if ss.repository.HasSession(name) {
+func (f *Finder) findExistingSession(name string) (*Session, error) {
+	if f.repository.HasSession(name) {
 		return New(name, "", true), nil
 	}
 	return nil, nil
 }
 
-func (ss *Service) findPreDefinedSession(name string) (*Session, error) {
-	for _, pd := range ss.preDefinedSessions {
+func (f *Finder) findPreDefinedSession(name string) (*Session, error) {
+	for _, pd := range f.preDefinedSessions {
 		found := slices.Contains(nameToMatch(pd), name)
 		if !found {
 			continue
 		}
 
-		existing, err := ss.findExistingSession(pd.Name)
+		existing, err := f.findExistingSession(pd.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -151,8 +146,8 @@ func (ss *Service) findPreDefinedSession(name string) (*Session, error) {
 	return nil, nil
 }
 
-func (ss *Service) findSmartSessionDirectorySession(name string) (*Session, error) {
-	for _, sd := range ss.smartDirectories {
+func (f *Finder) findSmartSessionDirectorySession(name string) (*Session, error) {
+	for _, sd := range f.smartDirectories {
 		dir, err := expandHomeDir(fmt.Sprintf("%s/%s", sd.Dir, name))
 		if err != nil {
 			return nil, err
@@ -165,9 +160,9 @@ func (ss *Service) findSmartSessionDirectorySession(name string) (*Session, erro
 	return nil, nil
 }
 
-func (ss *Service) getAllPreDefinedSessions() []*Session {
+func (f *Finder) getAllPreDefinedSessions() []*Session {
 	var sessions []*Session
-	for _, pd := range ss.preDefinedSessions {
+	for _, pd := range f.preDefinedSessions {
 		dir, err := expandHomeDir(pd.Dir)
 		if err != nil {
 			continue
@@ -182,9 +177,9 @@ func (ss *Service) getAllPreDefinedSessions() []*Session {
 	return sessions
 }
 
-func (ss *Service) getAllSmartSessionDirectorySessions() []*Session {
+func (f *Finder) getAllSmartSessionDirectorySessions() []*Session {
 	var sessions []*Session
-	for _, sd := range ss.smartDirectories {
+	for _, sd := range f.smartDirectories {
 		dir, err := expandHomeDir(sd.Dir)
 		if err != nil {
 			continue

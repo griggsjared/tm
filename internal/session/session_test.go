@@ -6,25 +6,25 @@ import (
 	"testing"
 )
 
-type mockRepository struct {
+type mockTmuxRepository struct {
 	hasSession  bool
 	allSessions []*Session
 }
 
-func (m *mockRepository) HasSession(name string) bool {
+func (m *mockTmuxRepository) HasSession(name string) bool {
 	return m.hasSession
 }
 
-func (m *mockRepository) AllSessions() []*Session {
+func (m *mockTmuxRepository) AllSessions() []*Session {
 	return m.allSessions
 }
 
 func TestFindExistingSession(t *testing.T) {
 	t.Run("existing session found", func(t *testing.T) {
-		checker := &mockRepository{hasSession: true}
-		svc := NewService(checker, nil, nil)
+		checker := &mockTmuxRepository{hasSession: true}
+		finder := NewFinder(checker, nil, nil)
 
-		sess, err := svc.findExistingSession("test")
+		sess, err := finder.findExistingSession("test")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -40,10 +40,10 @@ func TestFindExistingSession(t *testing.T) {
 	})
 
 	t.Run("no existing session", func(t *testing.T) {
-		checker := &mockRepository{hasSession: false}
-		svc := NewService(checker, nil, nil)
+		checker := &mockTmuxRepository{hasSession: false}
+		finder := NewFinder(checker, nil, nil)
 
-		sess, err := svc.findExistingSession("test")
+		sess, err := finder.findExistingSession("test")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -104,8 +104,8 @@ func TestFindPreDefinedSession(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := NewService(&mockRepository{}, tt.pre, nil)
-			sess, err := svc.findPreDefinedSession(tt.lookup)
+			finder := NewFinder(&mockTmuxRepository{}, tt.pre, nil)
+			sess, err := finder.findPreDefinedSession(tt.lookup)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -179,8 +179,8 @@ func TestFindSmartSessionDirectories(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := NewService(&mockRepository{}, nil, tt.smart)
-			sess, err := svc.findSmartSessionDirectorySession(tt.lookup)
+			finder := NewFinder(&mockTmuxRepository{}, nil, tt.smart)
+			sess, err := finder.findSmartSessionDirectorySession(tt.lookup)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -210,22 +210,23 @@ func TestServiceFind(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		checker    Repository
+		checker    TmuxRepository
 		pre        []PreDefinedSession
 		smart      []SmartDirectory
 		lookup     string
 		wantExists bool
 		wantDir    string
+		wantNil    bool
 	}{
 		{
 			name:       "existing session",
-			checker:    &mockRepository{hasSession: true},
+			checker:    &mockTmuxRepository{hasSession: true},
 			lookup:     "exists",
 			wantExists: true,
 		},
 		{
 			name:    "predefined session",
-			checker: &mockRepository{hasSession: false},
+			checker: &mockTmuxRepository{hasSession: false},
 			pre: []PreDefinedSession{
 				{Name: "predefined", Dir: projectDir},
 			},
@@ -234,7 +235,7 @@ func TestServiceFind(t *testing.T) {
 		},
 		{
 			name:    "predefined session that is already running and matches on alias",
-			checker: &mockRepository{hasSession: true},
+			checker: &mockTmuxRepository{hasSession: true},
 			pre: []PreDefinedSession{
 				{Name: "running", Dir: projectDir, Aliases: []string{"run"}},
 			},
@@ -243,25 +244,31 @@ func TestServiceFind(t *testing.T) {
 		},
 		{
 			name:    "smart directory",
-			checker: &mockRepository{hasSession: false},
+			checker: &mockTmuxRepository{hasSession: false},
 			smart:   []SmartDirectory{{Dir: tmp}},
 			lookup:  "myproject",
 			wantDir: projectDir,
 		},
 		{
-			name:    "fallback to cwd",
-			checker: &mockRepository{hasSession: false},
-			lookup:  "fallback",
-			wantDir: os.Getenv("PWD"),
+			name:    "no match returns nil",
+			checker: &mockTmuxRepository{hasSession: false},
+			lookup:  "nonexistent",
+			wantNil: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := NewService(tt.checker, tt.pre, tt.smart)
-			sess, err := svc.Find(tt.lookup)
+			finder := NewFinder(tt.checker, tt.pre, tt.smart)
+			sess, err := finder.Find(tt.lookup)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
+			}
+			if tt.wantNil {
+				if sess != nil {
+					t.Errorf("expected nil, got %v", sess)
+				}
+				return
 			}
 			if sess.Exists != tt.wantExists {
 				t.Errorf("expected exists=%v, got %v", tt.wantExists, sess.Exists)

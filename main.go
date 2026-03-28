@@ -6,6 +6,7 @@ import (
 
 	"github.com/griggsjared/tm/internal/app"
 	"github.com/griggsjared/tm/internal/config"
+	"github.com/griggsjared/tm/internal/fzf"
 	"github.com/griggsjared/tm/internal/session"
 	"github.com/griggsjared/tm/internal/tmux"
 )
@@ -29,12 +30,14 @@ func run() int {
 	}
 
 	tmuxRunner := tmux.NewRunner()
-	tmuxRepo := tmux.NewRepository(tmuxRunner, cfg.TmuxPath)
-	sessionService := session.NewService(tmuxRepo, cfg.PreDefinedSessions, cfg.SmartDirectories)
+	tmuxClient := tmux.NewClient(tmuxRunner, cfg.TmuxPath)
+	sessionFinder := session.NewFinder(tmuxClient, cfg.PreDefinedSessions, cfg.SmartDirectories)
+	fzfRunner := fzf.NewRunner(cfg.FzfPath)
 
 	app.New(
-		tmuxRepo,
-		sessionService,
+		tmuxClient,
+		sessionFinder,
+		fzfRunner,
 		cfg.Debug,
 	).Run()
 
