@@ -106,8 +106,8 @@ func TestRunner_Select_ErrorCases(t *testing.T) {
 				t.Errorf("expected ok=%v, got %v", tt.wantOk, ok)
 			}
 
-			if !tt.wantErr && !tt.wantOk && result != "" {
-				t.Errorf("expected empty result when not ok, got %s", result)
+			if !tt.wantErr && !tt.wantOk && result != 0 {
+				t.Errorf("expected empty result when not ok, got %d", result)
 			}
 		})
 	}

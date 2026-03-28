@@ -47,7 +47,7 @@ func (m *mockSessionFinder) List(onlyActive bool) []*session.Session {
 
 type mockFzfRunner struct {
 	available     bool
-	selectResult  string
+	selectResult  int
 	selectOk      bool
 	selectError   error
 	providedItems []string
@@ -58,7 +58,7 @@ func (m *mockFzfRunner) IsAvailable() bool {
 	return m.available
 }
 
-func (m *mockFzfRunner) Select(items []string, query string) (string, bool, error) {
+func (m *mockFzfRunner) Select(items []string, query string) (int, bool, error) {
 	m.providedItems = items
 	m.providedQuery = query
 	return m.selectResult, m.selectOk, m.selectError
@@ -194,7 +194,7 @@ func TestAppSelectSession(t *testing.T) {
 	tests := []struct {
 		name             string
 		fzfAvailable     bool
-		fzfResult        string
+		fzfResult        int
 		fzfOk            bool
 		fzfError         error
 		sessions         []*session.Session
@@ -214,7 +214,7 @@ func TestAppSelectSession(t *testing.T) {
 		{
 			name:             "fzf selects session",
 			fzfAvailable:     true,
-			fzfResult:        "session1\t/path/1",
+			fzfResult:        0,
 			fzfOk:            true,
 			sessions:         sessions,
 			query:            "",
@@ -225,7 +225,7 @@ func TestAppSelectSession(t *testing.T) {
 		{
 			name:         "fzf cancelled",
 			fzfAvailable: true,
-			fzfResult:    "",
+			fzfResult:    0,
 			fzfOk:        false,
 			sessions:     sessions,
 			query:        "",
@@ -278,3 +278,41 @@ func TestAppSelectSession(t *testing.T) {
 var _ TmuxRunner = &mockTmuxRunner{}
 var _ SessionFinder = &mockSessionFinder{}
 var _ FzfRunner = &mockFzfRunner{}
+
+func TestFormatSessionLine(t *testing.T) {
+	tests := []struct {
+		name     string
+		session  *session.Session
+		expected string
+	}{
+		{
+			name:     "with directory, not existing",
+			session:  &session.Session{Name: "myapp", Dir: "/home/user/myapp", Exists: false},
+			expected: "myapp [/home/user/myapp]",
+		},
+		{
+			name:     "with directory, existing",
+			session:  &session.Session{Name: "myapp", Dir: "/home/user/myapp", Exists: true},
+			expected: "myapp [/home/user/myapp] *",
+		},
+		{
+			name:     "no directory, not existing",
+			session:  &session.Session{Name: "myapp", Dir: "", Exists: false},
+			expected: "myapp []",
+		},
+		{
+			name:     "no directory, existing",
+			session:  &session.Session{Name: "myapp", Dir: "", Exists: true},
+			expected: "myapp [] *",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatSessionLine(tt.session)
+			if got != tt.expected {
+				t.Errorf("formatSessionLine() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}

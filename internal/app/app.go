@@ -20,7 +20,7 @@ type SessionFinder interface {
 
 type FzfRunner interface {
 	IsAvailable() bool
-	Select(items []string, query string) (string, bool, error)
+	Select(items []string, query string) (int, bool, error)
 }
 
 type App struct {
@@ -111,13 +111,12 @@ func (a *App) selectSession(sessions []*session.Session, query string) (*session
 	}
 
 	if a.fzfRunner.IsAvailable() {
-		// Format for fzf: name\tpath
 		items := make([]string, len(sessions))
 		for i, s := range sessions {
-			items[i] = fmt.Sprintf("%s\t%s", s.Name, s.Dir)
+			items[i] = formatSessionLine(s)
 		}
 
-		selected, ok, err := a.fzfRunner.Select(items, query)
+		idx, ok, err := a.fzfRunner.Select(items, query)
 		if err != nil {
 			return nil, err
 		}
@@ -125,24 +124,13 @@ func (a *App) selectSession(sessions []*session.Session, query string) (*session
 			return nil, nil // user cancelled
 		}
 
-		// Parse selection: extract name from first field
-		name := strings.Split(selected, "\t")[0]
-		for _, s := range sessions {
-			if s.Name == name {
-				return s, nil
-			}
-		}
-		return nil, fmt.Errorf("selected session not found: %s", name)
+		return sessions[idx], nil
 	}
 
 	// No fzf - print list
 	fmt.Println("Available sessions:")
 	for _, s := range sessions {
-		line := fmt.Sprintf("  %s [%s]", s.Name, s.Dir)
-		if s.Exists {
-			line += " *"
-		}
-		fmt.Println(line)
+		fmt.Println(formatSessionLine(s))
 	}
 	fmt.Printf("\nProvide a more specific name (query: %q)\n", query)
 	return nil, nil
@@ -161,6 +149,14 @@ func (a *App) attachToSession(s *session.Session) error {
 		return fmt.Errorf("error attaching to session: %w", err)
 	}
 	return nil
+}
+
+func formatSessionLine(s *session.Session) string {
+	line := fmt.Sprintf("%s [%s]", s.Name, s.Dir)
+	if s.Exists {
+		line += " *"
+	}
+	return line
 }
 
 func (a *App) debugMsg(msg string) {
@@ -183,11 +179,7 @@ func (a *App) handleBuiltinCommand(input string) bool {
 
 func (a *App) printSessionList(onlyExisting bool) {
 	for _, s := range a.sessionFinder.List(onlyExisting) {
-		line := fmt.Sprintf("%s [%s]", s.Name, s.Dir)
-		if s.Exists {
-			line += "*"
-		}
-		fmt.Println(line)
+		fmt.Println(formatSessionLine(s))
 	}
 }
 

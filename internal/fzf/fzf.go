@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -27,9 +28,9 @@ func (r *Runner) IsAvailable() bool {
 	return r.path != ""
 }
 
-func (r *Runner) Select(items []string, query string) (string, bool, error) {
+func (r *Runner) Select(items []string, query string) (int, bool, error) {
 	if !r.IsAvailable() {
-		return "", false, fmt.Errorf("fzf is not available")
+		return 0, false, fmt.Errorf("fzf is not available")
 	}
 
 	args := []string{
@@ -37,6 +38,7 @@ func (r *Runner) Select(items []string, query string) (string, bool, error) {
 		"--reverse",
 		"--select-1",
 		"--exit-0",
+		"--with-nth=2..",
 		fmt.Sprintf("--query=%s", query),
 	}
 
@@ -44,30 +46,30 @@ func (r *Runner) Select(items []string, query string) (string, bool, error) {
 
 	stdinPipe, err := cmd.StdinPipe()
 	if err != nil {
-		return "", false, fmt.Errorf("failed to create stdin pipe: %w", err)
+		return 0, false, fmt.Errorf("failed to create stdin pipe: %w", err)
 	}
 
 	cmd.Stderr = os.Stderr
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return "", false, fmt.Errorf("failed to create stdout pipe: %w", err)
+		return 0, false, fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
 
 	if err := cmd.Start(); err != nil {
-		return "", false, fmt.Errorf("failed to start fzf: %w", err)
+		return 0, false, fmt.Errorf("failed to start fzf: %w", err)
 	}
 
 	go func() {
 		defer stdinPipe.Close()
-		for _, item := range items {
-			fmt.Fprintln(stdinPipe, item)
+		for i, item := range items {
+			fmt.Fprintf(stdinPipe, "%d\t%s\n", i+1, item)
 		}
 	}()
 
 	output, err := io.ReadAll(stdoutPipe)
 	if err != nil {
-		return "", false, fmt.Errorf("failed to read fzf output: %w", err)
+		return 0, false, fmt.Errorf("failed to read fzf output: %w", err)
 	}
 	selected := strings.TrimSpace(string(output))
 
@@ -75,15 +77,25 @@ func (r *Runner) Select(items []string, query string) (string, bool, error) {
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			if exitErr.ExitCode() == 1 || exitErr.ExitCode() == 130 {
-				return "", false, nil
+				return 0, false, nil
 			}
 		}
-		return "", false, fmt.Errorf("fzf error: %w", err)
+		return 0, false, fmt.Errorf("fzf error: %w", err)
 	}
 
 	if selected == "" {
-		return "", false, nil
+		return 0, false, nil
 	}
 
-	return selected, true, nil
+	parts := strings.SplitN(selected, "\t", 2)
+	if len(parts) == 0 {
+		return 0, false, nil
+	}
+
+	idx, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, false, fmt.Errorf("failed to parse selection index: %w", err)
+	}
+
+	return idx - 1, true, nil
 }
