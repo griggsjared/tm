@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	"github.com/griggsjared/tm/internal/app"
 	"github.com/griggsjared/tm/internal/config"
@@ -13,13 +14,25 @@ import (
 
 var version = "dev"
 
+func getVersion() string {
+	if version != "dev" {
+		return version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if info.Main.Version != "" && info.Main.Version != "(devel)" {
+			return info.Main.Version
+		}
+	}
+	return "dev"
+}
+
 func main() {
 	os.Exit(run())
 }
 
 func run() int {
 	if len(os.Args) > 1 && os.Args[1] == "version" {
-		fmt.Println("tm version", version)
+		fmt.Println("tm version", getVersion())
 		return 0
 	}
 
