@@ -10,6 +10,7 @@ build:
 	go build -ldflags "$(BUILD_LDFLAGS)" -o tm .
 
 lint:
+	go vet ./...
 	golangci-lint run
 
 fmt:
