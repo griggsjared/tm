@@ -88,7 +88,7 @@ func (a *App) Run() {
 	}
 
 	// 0 or >1 matches - need selection
-	selected, err := a.selectSession(matches, input)
+	selected, err := a.selectSession(allSessions, input)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
