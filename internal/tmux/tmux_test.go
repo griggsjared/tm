@@ -44,14 +44,14 @@ func TestClient_HasSession(t *testing.T) {
 		{
 			name:       "session exists",
 			wantExists: true,
-			wantArgs:   []string{"has-session", "-t", "test-session"},
+			wantArgs:   []string{"has-session", "-t", "=test-session"},
 			wantPath:   "/usr/bin/tmux",
 			wantErr:    nil,
 		},
 		{
 			name:       "session doesn't exist",
 			wantExists: false,
-			wantArgs:   []string{"has-session", "-t", "non-existent"},
+			wantArgs:   []string{"has-session", "-t", "=non-existent"},
 			wantPath:   "/usr/bin/tmux",
 			wantErr:    errors.New("session not found"),
 		},
