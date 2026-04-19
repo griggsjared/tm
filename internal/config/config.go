@@ -74,22 +74,25 @@ func Load() (*Config, error) {
 	config.TmuxPath = envConfig.TmuxPath
 
 	if config.TmuxPath != "" {
-		if _, err := os.Stat(config.TmuxPath); err != nil {
-			return nil, fmt.Errorf("tmux path does not exist: %w", err)
+		if _, err := os.Stat(config.TmuxPath); err == nil {
+			// path exists, keep it
+		} else {
+			// path doesn't exist, leave empty (caller will check)
+			config.TmuxPath = ""
 		}
 	} else {
-		tmuxPath, err := exec.LookPath("tmux")
-		if err != nil {
-			return nil, err
+		if path, err := exec.LookPath("tmux"); err == nil {
+			config.TmuxPath = path
 		}
-		config.TmuxPath = tmuxPath
+		// not found, leave empty (caller will check)
 	}
 
 	config.FzfPath = envConfig.FzfPath
 
 	if config.FzfPath != "" {
 		if _, err := os.Stat(config.FzfPath); err != nil {
-			return nil, fmt.Errorf("fzf path does not exist: %w", err)
+			// path doesn't exist, leave empty (optional tool)
+			config.FzfPath = ""
 		}
 	}
 

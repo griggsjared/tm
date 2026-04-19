@@ -210,7 +210,7 @@ sessions: [
 }
 
 func TestLoad(t *testing.T) {
-	t.Run("tmux path validation fails", func(t *testing.T) {
+	t.Run("tmux path validation leaves empty", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		configPath := filepath.Join(tmpDir, "config.yaml")
 		os.WriteFile(configPath, []byte(""), 0644)
@@ -224,13 +224,16 @@ func TestLoad(t *testing.T) {
 		os.Setenv("TM_CONFIG_PATH", configPath)
 		defer os.Setenv("TM_CONFIG_PATH", oldConfig)
 
-		_, err := Load()
-		if err == nil {
-			t.Error("expected error for nonexistent tmux path")
+		cfg, err := Load()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if cfg.TmuxPath != "" {
+			t.Errorf("expected empty TmuxPath for nonexistent path, got %s", cfg.TmuxPath)
 		}
 	})
 
-	t.Run("fzf path validation fails", func(t *testing.T) {
+	t.Run("fzf path validation leaves empty", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		configPath := filepath.Join(tmpDir, "config.yaml")
 		os.WriteFile(configPath, []byte(""), 0644)
@@ -244,9 +247,12 @@ func TestLoad(t *testing.T) {
 		os.Setenv("TM_CONFIG_PATH", configPath)
 		defer os.Setenv("TM_CONFIG_PATH", oldConfig)
 
-		_, err := Load()
-		if err == nil {
-			t.Error("expected error for nonexistent fzf path")
+		cfg, err := Load()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if cfg.FzfPath != "" {
+			t.Errorf("expected empty FzfPath for nonexistent path, got %s", cfg.FzfPath)
 		}
 	})
 }
