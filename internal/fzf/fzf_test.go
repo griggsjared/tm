@@ -55,6 +55,35 @@ func TestRunner_IsAvailable(t *testing.T) {
 	}
 }
 
+func TestRunner_Path(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		wantPath string
+	}{
+		{
+			name:     "with path",
+			path:     "/usr/local/bin/fzf",
+			wantPath: "/usr/local/bin/fzf",
+		},
+		{
+			name:     "empty path",
+			path:     "",
+			wantPath: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			runner := &Runner{path: tt.path}
+			got := runner.Path()
+			if got != tt.wantPath {
+				t.Errorf("Path() = %v, want %v", got, tt.wantPath)
+			}
+		})
+	}
+}
+
 func TestRunner_Select_NotAvailable(t *testing.T) {
 	runner := &Runner{path: ""}
 	_, _, err := runner.Select([]string{"item"}, "query")

@@ -30,6 +30,10 @@ func (r *Runner) IsAvailable() bool {
 	return r.path != ""
 }
 
+func (r *Runner) Path() string {
+	return r.path
+}
+
 func (r *Runner) Select(items []string, query string) (int, bool, error) {
 	if !r.IsAvailable() {
 		return 0, false, fmt.Errorf("fzf is not available")
