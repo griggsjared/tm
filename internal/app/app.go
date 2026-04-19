@@ -9,6 +9,7 @@ import (
 )
 
 type TmuxRunner interface {
+	IsAvailable() bool
 	NewSession(s *session.Session, detached bool) error
 	AttachSession(s *session.Session) error
 	SwitchSession(s *session.Session) error
@@ -41,6 +42,11 @@ func New(tr TmuxRunner, ss SessionFinder, fr FzfRunner, debug bool) *App {
 }
 
 func (a *App) Run() {
+	if !a.tmuxRunner.IsAvailable() {
+		fmt.Println("Error: tmux not found. Install tmux or set TM_TMUX_PATH.")
+		return
+	}
+
 	// No arguments: select from all sessions
 	if len(os.Args) < 2 {
 		sessions := a.sessionFinder.List(false)

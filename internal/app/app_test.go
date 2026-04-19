@@ -8,6 +8,7 @@ import (
 )
 
 type mockTmuxRunner struct {
+	available           bool
 	newSessionCalled    bool
 	newSessionDetached  bool
 	attachSessionCalled bool
@@ -16,6 +17,10 @@ type mockTmuxRunner struct {
 	attachSessionError  error
 	switchSessionError  error
 	lastSession         *session.Session
+}
+
+func (m *mockTmuxRunner) IsAvailable() bool {
+	return m.available
 }
 
 func (m *mockTmuxRunner) NewSession(s *session.Session, detached bool) error {
@@ -221,6 +226,7 @@ func TestAppAttachToSession(t *testing.T) {
 			}
 
 			tmuxMock := &mockTmuxRunner{
+				available:          true,
 				newSessionError:    tt.newSessionErr,
 				attachSessionError: tt.attachSessionErr,
 				switchSessionError: tt.switchSessionErr,
@@ -305,7 +311,7 @@ func TestAppSelectSession(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmuxMock := &mockTmuxRunner{}
+			tmuxMock := &mockTmuxRunner{available: true}
 			fzfMock := &mockFzfRunner{
 				available:    tt.fzfAvailable,
 				selectResult: tt.fzfResult,
