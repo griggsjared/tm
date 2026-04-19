@@ -44,6 +44,10 @@ func (c *Client) IsAvailable() bool {
 	return c.path != ""
 }
 
+func (c *Client) Path() string {
+	return c.path
+}
+
 func (c *Client) HasSession(name string) bool {
 	if _, err := c.runner.Output(c.path, []string{"has-session", "-t", "=" + name}); err != nil {
 		return false
