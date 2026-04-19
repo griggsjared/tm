@@ -11,28 +11,19 @@ import (
 
 type Runner struct {
 	path string
-	opts []string
 }
 
 // NewRunner creates a new Runner with an optional custom path.
 // If path is empty, it searches for fzf in PATH.
-func NewRunner(path string, opts []string) *Runner {
+// Customize fzf behavior via FZF_DEFAULT_OPTS in your environment.
+func NewRunner(path string) *Runner {
 	if path == "" {
 		if fzfPath, err := exec.LookPath("fzf"); err == nil {
 			path = fzfPath
 		}
 	}
 
-	// Use default opts if none provided
-	if len(opts) == 0 {
-		opts = []string{
-			"--height=20%",
-			"--ansi",
-			"--reverse",
-		}
-	}
-
-	return &Runner{path: path, opts: opts}
+	return &Runner{path: path}
 }
 
 func (r *Runner) IsAvailable() bool {
@@ -44,8 +35,7 @@ func (r *Runner) Select(items []string, query string) (int, bool, error) {
 		return 0, false, fmt.Errorf("fzf is not available")
 	}
 
-	args := make([]string, 0, len(r.opts)+4)
-	args = append(args, r.opts...)
+	args := make([]string, 0, 4)
 	args = append(args, "--select-1", "--exit-0", "--with-nth=2..", fmt.Sprintf("--query=%s", query))
 
 	cmd := exec.Command(r.path, args...)

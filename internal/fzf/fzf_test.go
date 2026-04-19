@@ -8,14 +8,14 @@ import (
 
 func TestNewRunner(t *testing.T) {
 	t.Run("with explicit path", func(t *testing.T) {
-		runner := NewRunner("/usr/local/bin/fzf", nil)
+		runner := NewRunner("/usr/local/bin/fzf")
 		if runner.path != "/usr/local/bin/fzf" {
 			t.Errorf("expected path /usr/local/bin/fzf, got %s", runner.path)
 		}
 	})
 
 	t.Run("with empty path looks up fzf", func(t *testing.T) {
-		runner := NewRunner("", nil)
+		runner := NewRunner("")
 		// If fzf is in PATH, path should be set
 		// If not, path should be empty
 		if runner.path != "" {
@@ -23,27 +23,6 @@ func TestNewRunner(t *testing.T) {
 			if _, err := exec.LookPath("fzf"); err != nil {
 				t.Errorf("expected empty path when fzf not in PATH, got %s", runner.path)
 			}
-		}
-	})
-
-	t.Run("with custom opts", func(t *testing.T) {
-		customOpts := []string{"--height=50%", "--border"}
-		runner := NewRunner("/usr/local/bin/fzf", customOpts)
-		if len(runner.opts) != 2 {
-			t.Errorf("expected 2 opts, got %d", len(runner.opts))
-		}
-		if runner.opts[0] != "--height=50%" || runner.opts[1] != "--border" {
-			t.Errorf("expected custom opts, got %v", runner.opts)
-		}
-	})
-
-	t.Run("with nil opts uses defaults", func(t *testing.T) {
-		runner := NewRunner("/usr/local/bin/fzf", nil)
-		if len(runner.opts) != 3 {
-			t.Errorf("expected 3 default opts, got %d", len(runner.opts))
-		}
-		if runner.opts[0] != "--height=20%" || runner.opts[1] != "--ansi" || runner.opts[2] != "--reverse" {
-			t.Errorf("expected default opts, got %v", runner.opts)
 		}
 	})
 }

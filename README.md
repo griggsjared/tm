@@ -45,7 +45,6 @@ TM loads configuration from environment variables and a YAML config file.
 - `TM_DEBUG`: Enable debug mode (`true` or `false`). Defaults to `false`.
 - `TM_TMUX_PATH`: Path to the tmux binary. Defaults to `tmux` in PATH.
 - `TM_FZF_PATH`: Path to the fzf binary. Defaults to `fzf` in PATH.
-- `TM_FZF_OPTS`: Space-separated fzf options for customizing the UI. Defaults to `--height=20% --ansi --reverse`.
 - `TM_CONFIG_PATH`: Path to the config file. Defaults to `~/.config/tm/config.yaml`.
 
 ### Config File

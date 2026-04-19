@@ -45,7 +45,7 @@ func run() int {
 	tmuxRunner := tmux.NewRunner()
 	tmuxClient := tmux.NewClient(tmuxRunner, cfg.TmuxPath)
 	sessionFinder := session.NewFinder(tmuxClient, cfg.PreDefinedSessions, cfg.SmartDirectories)
-	fzfRunner := fzf.NewRunner(cfg.FzfPath, cfg.FzfOpts)
+	fzfRunner := fzf.NewRunner(cfg.FzfPath)
 
 	app.New(
 		tmuxClient,

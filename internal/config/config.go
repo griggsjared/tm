@@ -18,7 +18,6 @@ type Config struct {
 	Debug              bool
 	TmuxPath           string
 	FzfPath            string
-	FzfOpts            []string
 	PreDefinedSessions []session.PreDefinedSession
 	SmartDirectories   []session.SmartDirectory
 }
@@ -73,7 +72,6 @@ func Load() (*Config, error) {
 
 	config.Debug = envConfig.Debug
 	config.TmuxPath = envConfig.TmuxPath
-	config.FzfOpts = envConfig.FzfOpts
 
 	if config.TmuxPath != "" {
 		if _, err := os.Stat(config.TmuxPath); err != nil {
@@ -99,11 +97,10 @@ func Load() (*Config, error) {
 }
 
 type envConfig struct {
-	Debug      bool     `env:"TM_DEBUG"`
-	TmuxPath   string   `env:"TM_TMUX_PATH"`
-	FzfPath    string   `env:"TM_FZF_PATH"`
-	FzfOpts    []string `env:"TM_FZF_OPTS"`
-	ConfigPath string   `env:"TM_CONFIG_PATH"`
+	Debug      bool   `env:"TM_DEBUG"`
+	TmuxPath   string `env:"TM_TMUX_PATH"`
+	FzfPath    string `env:"TM_FZF_PATH"`
+	ConfigPath string `env:"TM_CONFIG_PATH"`
 }
 
 func loadConfigFromEnv() (*envConfig, error) {
