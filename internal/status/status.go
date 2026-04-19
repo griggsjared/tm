@@ -1,4 +1,4 @@
-package doctor
+package status
 
 import (
 	"fmt"
@@ -17,16 +17,16 @@ type FzfRunner interface {
 	Path() string
 }
 
-// Doctor checks the health of tm dependencies
-type Doctor struct {
+// Status checks the health of tm dependencies
+type Status struct {
 	version    string
 	tmuxClient TmuxClient
 	fzfRunner  FzfRunner
 }
 
-// New creates a new Doctor instance
-func New(version string, tmuxClient TmuxClient, fzfRunner FzfRunner) *Doctor {
-	return &Doctor{
+// New creates a new Status instance
+func New(version string, tmuxClient TmuxClient, fzfRunner FzfRunner) *Status {
+	return &Status{
 		version:    version,
 		tmuxClient: tmuxClient,
 		fzfRunner:  fzfRunner,
@@ -41,20 +41,20 @@ func printStatusLine(name, status string) {
 }
 
 // Run performs the health check and returns the exit code
-func (d *Doctor) Run() int {
+func (s *Status) Run() int {
 	exitCode := 0
 
-	printStatusLine("tm", fmt.Sprintf("ok (%s)", d.version))
+	printStatusLine("tm", fmt.Sprintf("ok (%s)", s.version))
 
-	if d.tmuxClient.IsAvailable() {
-		printStatusLine("tmux", fmt.Sprintf("ok (%s)", d.tmuxClient.Path()))
+	if s.tmuxClient.IsAvailable() {
+		printStatusLine("tmux", fmt.Sprintf("ok (%s)", s.tmuxClient.Path()))
 	} else {
 		printStatusLine("tmux", "missing")
 		exitCode = 1
 	}
 
-	if d.fzfRunner.IsAvailable() {
-		printStatusLine("fzf", fmt.Sprintf("ok (%s) (optional)", d.fzfRunner.Path()))
+	if s.fzfRunner.IsAvailable() {
+		printStatusLine("fzf", fmt.Sprintf("ok (%s) (optional)", s.fzfRunner.Path()))
 	} else {
 		printStatusLine("fzf", "missing (optional)")
 	}

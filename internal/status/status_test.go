@@ -1,4 +1,4 @@
-package doctor
+package status
 
 import (
 	"testing"
@@ -30,7 +30,7 @@ func (m *mockFzfRunner) Path() string {
 	return m.path
 }
 
-func TestDoctor_Run(t *testing.T) {
+func TestStatus_Run(t *testing.T) {
 	tests := []struct {
 		name      string
 		tmuxAvail bool
@@ -77,9 +77,9 @@ func TestDoctor_Run(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tmuxMock := &mockTmuxClient{available: tt.tmuxAvail, path: tt.tmuxPath}
 			fzfMock := &mockFzfRunner{available: tt.fzfAvail, path: tt.fzfPath}
-			doc := New("test", tmuxMock, fzfMock)
+			s := New("test", tmuxMock, fzfMock)
 
-			got := doc.Run()
+			got := s.Run()
 			if got != tt.wantExit {
 				t.Errorf("Run() = %v, want %v", got, tt.wantExit)
 			}

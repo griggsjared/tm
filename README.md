@@ -27,7 +27,7 @@ tm              # Opens fzf with all available sessions
 tm session-name # Exact match or fuzzy search
 tm ls           # List active sessions
 tm ls-all       # List all sessions (including pre-defined)
-tm doctor       # Check tm and its dependencies
+tm status       # Check tm and its dependencies
 ```
 
 ### How it works
@@ -91,7 +91,7 @@ tm/
 ├── internal/
 │   ├── app/             # Application orchestration
 │   ├── config/          # Configuration loading
-│   ├── doctor/          # Dependency health checks
+│   ├── status/          # Dependency health checks
 │   ├── fzf/             # Fuzzy finding integration
 │   ├── session/         # Session domain (Finder)
 │   └── tmux/            # Tmux client
@@ -103,7 +103,7 @@ tm/
 - **session.Finder**: Discovers sessions from multiple sources (tmux, pre-defined, smart directories)
 - **tmux.Client**: Low-level tmux operations (create, attach, check existence)
 - **fzf**: Fuzzy finding integration (optional)
-- **doctor**: Checks availability and paths of tm dependencies (tmux, fzf)
+- **status**: Checks availability and paths of tm dependencies (tmux, fzf)
 
 ### Building from Source
 
