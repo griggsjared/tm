@@ -346,6 +346,28 @@ var _ TmuxRunner = &mockTmuxRunner{}
 var _ SessionFinder = &mockSessionFinder{}
 var _ FzfRunner = &mockFzfRunner{}
 
+func TestApp_Run_TmuxUnavailable(t *testing.T) {
+	tmuxMock := &mockTmuxRunner{available: false}
+	sessionMock := &mockSessionFinder{}
+	fzfMock := &mockFzfRunner{available: false}
+
+	app := New(tmuxMock, sessionMock, fzfMock, false)
+
+	// Run should return early without calling any session methods
+	app.Run()
+
+	// Verify no session operations were attempted
+	if sessionMock.findCalled {
+		t.Error("Find should not be called when tmux unavailable")
+	}
+	if sessionMock.listCalled {
+		t.Error("List should not be called when tmux unavailable")
+	}
+	if tmuxMock.newSessionCalled {
+		t.Error("NewSession should not be called when tmux unavailable")
+	}
+}
+
 func TestFormatSessionLine(t *testing.T) {
 	tests := []struct {
 		name     string
