@@ -9,8 +9,9 @@ import (
 )
 
 type TmuxRunner interface {
-	NewSession(s *session.Session) error
+	NewSession(s *session.Session, detached bool) error
 	AttachSession(s *session.Session) error
+	SwitchSession(s *session.Session) error
 }
 
 type SessionFinder interface {
@@ -137,13 +138,26 @@ func (a *App) selectSession(sessions []*session.Session, query string) (*session
 }
 
 func (a *App) attachToSession(s *session.Session) error {
+	if os.Getenv("TMUX") != "" {
+		if !s.Exists {
+			a.debugMsg(fmt.Sprintf("Creating new session: %s", s.Name))
+			if err := a.tmuxRunner.NewSession(s, true); err != nil {
+				return fmt.Errorf("error creating session: %w", err)
+			}
+		}
+		a.debugMsg(fmt.Sprintf("Switching to session: %s", s.Name))
+		if err := a.tmuxRunner.SwitchSession(s); err != nil {
+			return fmt.Errorf("error switching session: %w", err)
+		}
+		return nil
+	}
+
 	if !s.Exists {
 		a.debugMsg(fmt.Sprintf("Creating new session: %s", s.Name))
-		if err := a.tmuxRunner.NewSession(s); err != nil {
+		if err := a.tmuxRunner.NewSession(s, false); err != nil {
 			return fmt.Errorf("error creating session: %w", err)
 		}
 	}
-
 	a.debugMsg(fmt.Sprintf("Attaching to session: %s", s.Name))
 	if err := a.tmuxRunner.AttachSession(s); err != nil {
 		return fmt.Errorf("error attaching to session: %w", err)

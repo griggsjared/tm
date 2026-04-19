@@ -9,14 +9,18 @@ import (
 
 type mockTmuxRunner struct {
 	newSessionCalled    bool
+	newSessionDetached  bool
 	attachSessionCalled bool
+	switchSessionCalled bool
 	newSessionError     error
 	attachSessionError  error
+	switchSessionError  error
 	lastSession         *session.Session
 }
 
-func (m *mockTmuxRunner) NewSession(s *session.Session) error {
+func (m *mockTmuxRunner) NewSession(s *session.Session, detached bool) error {
 	m.newSessionCalled = true
+	m.newSessionDetached = detached
 	m.lastSession = s
 	return m.newSessionError
 }
@@ -25,6 +29,12 @@ func (m *mockTmuxRunner) AttachSession(s *session.Session) error {
 	m.attachSessionCalled = true
 	m.lastSession = s
 	return m.attachSessionError
+}
+
+func (m *mockTmuxRunner) SwitchSession(s *session.Session) error {
+	m.switchSessionCalled = true
+	m.lastSession = s
+	return m.switchSessionError
 }
 
 type mockSessionFinder struct {
@@ -122,54 +132,100 @@ func TestAppAttachToSession(t *testing.T) {
 	tests := []struct {
 		name             string
 		session          *session.Session
+		insideTmux       bool
 		newSessionErr    error
 		attachSessionErr error
+		switchSessionErr error
 		wantNewCalled    bool
+		wantNewDetached  bool
 		wantAttachCalled bool
+		wantSwitchCalled bool
 		wantErr          bool
 	}{
 		{
-			name:             "attach to existing session",
+			name:             "outside tmux: attach to existing session",
 			session:          &session.Session{Name: "test", Exists: true},
+			insideTmux:       false,
 			wantNewCalled:    false,
 			wantAttachCalled: true,
+			wantSwitchCalled: false,
 			wantErr:          false,
 		},
 		{
-			name:             "create and attach to new session",
+			name:             "outside tmux: create and attach to new session",
 			session:          &session.Session{Name: "test", Exists: false},
+			insideTmux:       false,
 			wantNewCalled:    true,
+			wantNewDetached:  false,
 			wantAttachCalled: true,
+			wantSwitchCalled: false,
 			wantErr:          false,
 		},
 		{
-			name:             "error creating session",
-			session:          &session.Session{Name: "test", Exists: false},
-			newSessionErr:    errors.New("create failed"),
-			wantNewCalled:    true,
-			wantAttachCalled: false,
+			name:          "outside tmux: error creating session",
+			session:       &session.Session{Name: "test", Exists: false},
+			insideTmux:    false,
+			newSessionErr: errors.New("create failed"),
+			wantNewCalled: true,
+			wantErr:       true,
+		},
+		{
+			name:             "outside tmux: error attaching to session",
+			session:          &session.Session{Name: "test", Exists: true},
+			insideTmux:       false,
+			attachSessionErr: errors.New("attach failed"),
+			wantAttachCalled: true,
 			wantErr:          true,
 		},
 		{
-			name:             "error attaching to session",
+			name:             "inside tmux: switch to existing session",
 			session:          &session.Session{Name: "test", Exists: true},
-			attachSessionErr: errors.New("attach failed"),
-			wantNewCalled:    false,
-			wantAttachCalled: true,
+			insideTmux:       true,
+			wantSwitchCalled: true,
+			wantErr:          false,
+		},
+		{
+			name:             "inside tmux: create and switch to new session",
+			session:          &session.Session{Name: "test", Exists: false},
+			insideTmux:       true,
+			wantNewCalled:    true,
+			wantNewDetached:  true,
+			wantSwitchCalled: true,
+			wantErr:          false,
+		},
+		{
+			name:            "inside tmux: error creating session",
+			session:         &session.Session{Name: "test", Exists: false},
+			insideTmux:      true,
+			newSessionErr:   errors.New("create failed"),
+			wantNewCalled:   true,
+			wantNewDetached: true,
+			wantErr:         true,
+		},
+		{
+			name:             "inside tmux: error switching session",
+			session:          &session.Session{Name: "test", Exists: true},
+			insideTmux:       true,
+			switchSessionErr: errors.New("switch failed"),
+			wantSwitchCalled: true,
 			wantErr:          true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.insideTmux {
+				t.Setenv("TMUX", "/tmp/tmux-1234/default,0,0")
+			} else {
+				t.Setenv("TMUX", "")
+			}
+
 			tmuxMock := &mockTmuxRunner{
 				newSessionError:    tt.newSessionErr,
 				attachSessionError: tt.attachSessionErr,
+				switchSessionError: tt.switchSessionErr,
 			}
-			fzfMock := &mockFzfRunner{}
-			sessionMock := &mockSessionFinder{}
-
-			app := New(tmuxMock, sessionMock, fzfMock, false)
+			app := New(tmuxMock, &mockSessionFinder{}, &mockFzfRunner{}, false)
 			err := app.attachToSession(tt.session)
 
 			if (err != nil) != tt.wantErr {
@@ -178,13 +234,18 @@ func TestAppAttachToSession(t *testing.T) {
 			if tmuxMock.newSessionCalled != tt.wantNewCalled {
 				t.Errorf("NewSession called = %v, want %v", tmuxMock.newSessionCalled, tt.wantNewCalled)
 			}
+			if tmuxMock.newSessionCalled && tmuxMock.newSessionDetached != tt.wantNewDetached {
+				t.Errorf("NewSession detached = %v, want %v", tmuxMock.newSessionDetached, tt.wantNewDetached)
+			}
 			if tmuxMock.attachSessionCalled != tt.wantAttachCalled {
 				t.Errorf("AttachSession called = %v, want %v", tmuxMock.attachSessionCalled, tt.wantAttachCalled)
+			}
+			if tmuxMock.switchSessionCalled != tt.wantSwitchCalled {
+				t.Errorf("SwitchSession called = %v, want %v", tmuxMock.switchSessionCalled, tt.wantSwitchCalled)
 			}
 		})
 	}
 }
-
 func TestAppSelectSession(t *testing.T) {
 	sessions := []*session.Session{
 		{Name: "session1", Dir: "/path/1"},
