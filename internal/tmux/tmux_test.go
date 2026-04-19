@@ -36,6 +36,37 @@ func TestNewRunner(t *testing.T) {
 	}
 }
 
+func TestClient_IsAvailable(t *testing.T) {
+	tests := []struct {
+		name      string
+		path      string
+		wantAvail bool
+	}{
+		{
+			name:      "with path",
+			path:      "/usr/bin/tmux",
+			wantAvail: true,
+		},
+		{
+			name:      "empty path",
+			path:      "",
+			wantAvail: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cr := &TestRunner{}
+			client := NewClient(cr, tt.path)
+
+			got := client.IsAvailable()
+			if got != tt.wantAvail {
+				t.Fatalf("IsAvailable() = %v, want %v", got, tt.wantAvail)
+			}
+		})
+	}
+}
+
 func TestClient_HasSession(t *testing.T) {
 	tests := []struct {
 		name       string
