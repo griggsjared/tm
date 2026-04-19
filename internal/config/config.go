@@ -71,32 +71,23 @@ func Load() (*Config, error) {
 	}
 
 	config.Debug = envConfig.Debug
-	config.TmuxPath = envConfig.TmuxPath
-
-	if config.TmuxPath != "" {
-		if _, err := os.Stat(config.TmuxPath); err == nil {
-			// path exists, keep it
-		} else {
-			// path doesn't exist, leave empty (caller will check)
-			config.TmuxPath = ""
-		}
-	} else {
-		if path, err := exec.LookPath("tmux"); err == nil {
-			config.TmuxPath = path
-		}
-		// not found, leave empty (caller will check)
-	}
-
-	config.FzfPath = envConfig.FzfPath
-
-	if config.FzfPath != "" {
-		if _, err := os.Stat(config.FzfPath); err != nil {
-			// path doesn't exist, leave empty (optional tool)
-			config.FzfPath = ""
-		}
-	}
+	config.TmuxPath = resolveBinaryPath(envConfig.TmuxPath, "tmux")
+	config.FzfPath = resolveBinaryPath(envConfig.FzfPath, "fzf")
 
 	return config, nil
+}
+
+func resolveBinaryPath(envPath, binaryName string) string {
+	if envPath != "" {
+		if _, err := os.Stat(envPath); err == nil {
+			return envPath
+		}
+		return ""
+	}
+	if path, err := exec.LookPath(binaryName); err == nil {
+		return path
+	}
+	return ""
 }
 
 type envConfig struct {
