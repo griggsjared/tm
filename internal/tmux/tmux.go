@@ -80,10 +80,6 @@ func (c *Client) AllSessions() []*session.Session {
 	}
 
 	lines := strings.Split(string(output), "\n")
-	if len(lines) == 0 {
-		return sessions
-	}
-
 	for _, line := range lines {
 		if line == "" {
 			continue
