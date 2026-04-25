@@ -14,4 +14,4 @@ lint:
 	golangci-lint run
 
 fmt:
-	go fmt ./...
+	gofmt -s -w .
