@@ -10,6 +10,8 @@ import (
 	"github.com/griggsjared/tm/internal/session"
 )
 
+const listSessionsFormat = "#{session_name}\t#{session_path}\t#{session_last_attached}"
+
 type Runner interface {
 	Output(path string, args []string) ([]byte, error)
 	Exec(path string, args []string) error
@@ -74,7 +76,7 @@ func (c *Client) SwitchSession(s *session.Session) error {
 
 func (c *Client) AllSessions() []*session.Session {
 	var sessions []*session.Session
-	output, err := c.runner.Output(c.path, []string{"list-sessions", "-F", "#{session_name}\t#{session_path}\t#{session_last_attached}"})
+	output, err := c.runner.Output(c.path, []string{"list-sessions", "-F", listSessionsFormat})
 	if err != nil {
 		return sessions
 	}

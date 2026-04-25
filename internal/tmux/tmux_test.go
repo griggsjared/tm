@@ -342,14 +342,14 @@ func TestClient_AllSessions(t *testing.T) {
 	}{
 		{
 			name:       "list no sessions",
-			wantArgs:   []string{"list-sessions", "-F", "#{session_name}\t#{session_path}\t#{session_last_attached}"},
+			wantArgs:   []string{"list-sessions", "-F", listSessionsFormat},
 			wantPath:   "/usr/bin/tmux",
 			wantOutput: []*session.Session{},
 			crOutput:   []byte(""),
 		},
 		{
 			name:     "list multiple sessions",
-			wantArgs: []string{"list-sessions", "-F", "#{session_name}\t#{session_path}\t#{session_last_attached}"},
+			wantArgs: []string{"list-sessions", "-F", listSessionsFormat},
 			wantPath: "/usr/bin/tmux",
 			wantOutput: []*session.Session{
 				{Name: "session1", Dir: "/path/to/session1", Exists: true, LastAttached: 1000},
@@ -359,7 +359,7 @@ func TestClient_AllSessions(t *testing.T) {
 		},
 		{
 			name:     "session never attached has zero LastAttached",
-			wantArgs: []string{"list-sessions", "-F", "#{session_name}\t#{session_path}\t#{session_last_attached}"},
+			wantArgs: []string{"list-sessions", "-F", listSessionsFormat},
 			wantPath: "/usr/bin/tmux",
 			wantOutput: []*session.Session{
 				{Name: "session1", Dir: "/path/to/session1", Exists: true, LastAttached: 0},
