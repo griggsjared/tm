@@ -342,29 +342,29 @@ func TestClient_AllSessions(t *testing.T) {
 	}{
 		{
 			name:       "list no sessions",
-			wantArgs:   []string{"list-sessions", "-F", "#{session_name}:#{session_path}:#{session_last_attached}"},
+			wantArgs:   []string{"list-sessions", "-F", "#{session_name}\t#{session_path}\t#{session_last_attached}"},
 			wantPath:   "/usr/bin/tmux",
 			wantOutput: []*session.Session{},
 			crOutput:   []byte(""),
 		},
 		{
 			name:     "list multiple sessions",
-			wantArgs: []string{"list-sessions", "-F", "#{session_name}:#{session_path}:#{session_last_attached}"},
+			wantArgs: []string{"list-sessions", "-F", "#{session_name}\t#{session_path}\t#{session_last_attached}"},
 			wantPath: "/usr/bin/tmux",
 			wantOutput: []*session.Session{
 				{Name: "session1", Dir: "/path/to/session1", Exists: true, LastAttached: 1000},
 				{Name: "session2", Dir: "/path/to/session2", Exists: true, LastAttached: 2000},
 			},
-			crOutput: []byte("session1:/path/to/session1:1000\nsession2:/path/to/session2:2000\n"),
+			crOutput: []byte("session1\t/path/to/session1\t1000\nsession2\t/path/to/session2\t2000\n"),
 		},
 		{
 			name:     "session never attached has zero LastAttached",
-			wantArgs: []string{"list-sessions", "-F", "#{session_name}:#{session_path}:#{session_last_attached}"},
+			wantArgs: []string{"list-sessions", "-F", "#{session_name}\t#{session_path}\t#{session_last_attached}"},
 			wantPath: "/usr/bin/tmux",
 			wantOutput: []*session.Session{
 				{Name: "session1", Dir: "/path/to/session1", Exists: true, LastAttached: 0},
 			},
-			crOutput: []byte("session1:/path/to/session1:0\n"),
+			crOutput: []byte("session1\t/path/to/session1\t0\n"),
 		},
 	}
 

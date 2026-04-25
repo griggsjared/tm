@@ -74,7 +74,7 @@ func (c *Client) SwitchSession(s *session.Session) error {
 
 func (c *Client) AllSessions() []*session.Session {
 	var sessions []*session.Session
-	output, err := c.runner.Output(c.path, []string{"list-sessions", "-F", "#{session_name}:#{session_path}:#{session_last_attached}"})
+	output, err := c.runner.Output(c.path, []string{"list-sessions", "-F", "#{session_name}\t#{session_path}\t#{session_last_attached}"})
 	if err != nil {
 		return sessions
 	}
@@ -89,7 +89,7 @@ func (c *Client) AllSessions() []*session.Session {
 			continue
 		}
 
-		parts := strings.SplitN(line, ":", 3)
+		parts := strings.SplitN(line, "\t", 3)
 		if len(parts) < 3 {
 			continue
 		}
