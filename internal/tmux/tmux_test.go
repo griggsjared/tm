@@ -342,20 +342,29 @@ func TestClient_AllSessions(t *testing.T) {
 	}{
 		{
 			name:       "list no sessions",
-			wantArgs:   []string{"list-sessions", "-F", "#{session_name}:#{session_path}"},
+			wantArgs:   []string{"list-sessions", "-F", "#{session_name}:#{session_path}:#{session_last_attached}"},
 			wantPath:   "/usr/bin/tmux",
 			wantOutput: []*session.Session{},
 			crOutput:   []byte(""),
 		},
 		{
 			name:     "list multiple sessions",
-			wantArgs: []string{"list-sessions", "-F", "#{session_name}:#{session_path}"},
+			wantArgs: []string{"list-sessions", "-F", "#{session_name}:#{session_path}:#{session_last_attached}"},
 			wantPath: "/usr/bin/tmux",
 			wantOutput: []*session.Session{
-				{Name: "session1", Dir: "/path/to/session1", Exists: true},
-				{Name: "session2", Dir: "/path/to/session2", Exists: true},
+				{Name: "session1", Dir: "/path/to/session1", Exists: true, LastAttached: 1000},
+				{Name: "session2", Dir: "/path/to/session2", Exists: true, LastAttached: 2000},
 			},
-			crOutput: []byte("session1:/path/to/session1\nsession2:/path/to/session2\n"),
+			crOutput: []byte("session1:/path/to/session1:1000\nsession2:/path/to/session2:2000\n"),
+		},
+		{
+			name:     "session never attached has zero LastAttached",
+			wantArgs: []string{"list-sessions", "-F", "#{session_name}:#{session_path}:#{session_last_attached}"},
+			wantPath: "/usr/bin/tmux",
+			wantOutput: []*session.Session{
+				{Name: "session1", Dir: "/path/to/session1", Exists: true, LastAttached: 0},
+			},
+			crOutput: []byte("session1:/path/to/session1:0\n"),
 		},
 	}
 
@@ -372,8 +381,8 @@ func TestClient_AllSessions(t *testing.T) {
 
 			if len(sessions) > 0 {
 				for i, sess := range sessions {
-					if sess.Name != tt.wantOutput[i].Name || sess.Dir != tt.wantOutput[i].Dir {
-						t.Fatalf("Expected session %d to be %s:%s, got %s:%s", i, tt.wantOutput[i].Name, tt.wantOutput[i].Dir, sess.Name, sess.Dir)
+					if sess.Name != tt.wantOutput[i].Name || sess.Dir != tt.wantOutput[i].Dir || sess.LastAttached != tt.wantOutput[i].LastAttached {
+						t.Fatalf("Expected session %d to be %s:%s:%d, got %s:%s:%d", i, tt.wantOutput[i].Name, tt.wantOutput[i].Dir, tt.wantOutput[i].LastAttached, sess.Name, sess.Dir, sess.LastAttached)
 					}
 				}
 			}

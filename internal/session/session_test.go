@@ -280,6 +280,28 @@ func TestServiceFind(t *testing.T) {
 	}
 }
 
+func TestList_SortedByLastAttached(t *testing.T) {
+	sessions := []*Session{
+		{Name: "oldest", Dir: "/tmp/oldest", Exists: true, LastAttached: 1000},
+		{Name: "newest", Dir: "/tmp/newest", Exists: true, LastAttached: 3000},
+		{Name: "never", Dir: "/tmp/never", Exists: true, LastAttached: 0},
+		{Name: "middle", Dir: "/tmp/middle", Exists: true, LastAttached: 2000},
+	}
+
+	finder := NewFinder(&mockTmuxRepository{allSessions: sessions}, nil, nil)
+	got := finder.List(true)
+
+	wantOrder := []string{"newest", "middle", "oldest", "never"}
+	if len(got) != len(wantOrder) {
+		t.Fatalf("expected %d sessions, got %d", len(wantOrder), len(got))
+	}
+	for i, name := range wantOrder {
+		if got[i].Name != name {
+			t.Errorf("position %d: expected %s, got %s", i, name, got[i].Name)
+		}
+	}
+}
+
 func TestDirExists(t *testing.T) {
 	tmp := t.TempDir()
 	exists := dirExists(tmp)

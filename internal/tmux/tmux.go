@@ -3,6 +3,7 @@ package tmux
 import (
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -73,7 +74,7 @@ func (c *Client) SwitchSession(s *session.Session) error {
 
 func (c *Client) AllSessions() []*session.Session {
 	var sessions []*session.Session
-	output, err := c.runner.Output(c.path, []string{"list-sessions", "-F", "#{session_name}:#{session_path}"})
+	output, err := c.runner.Output(c.path, []string{"list-sessions", "-F", "#{session_name}:#{session_path}:#{session_last_attached}"})
 	if err != nil {
 		return sessions
 	}
@@ -88,8 +89,13 @@ func (c *Client) AllSessions() []*session.Session {
 			continue
 		}
 
-		parts := strings.SplitN(line, ":", 2)
-		sessions = append(sessions, session.New(parts[0], parts[1], true))
+		parts := strings.SplitN(line, ":", 3)
+		if len(parts) < 3 {
+			continue
+		}
+
+		lastAttached, _ := strconv.ParseInt(parts[2], 10, 64)
+		sessions = append(sessions, session.New(parts[0], parts[1], true, lastAttached))
 	}
 	return sessions
 }

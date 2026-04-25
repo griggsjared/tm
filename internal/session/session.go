@@ -1,6 +1,7 @@
 package session
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"slices"
@@ -8,16 +9,18 @@ import (
 )
 
 type Session struct {
-	Name   string
-	Dir    string
-	Exists bool
+	Name         string
+	Dir          string
+	Exists       bool
+	LastAttached int64
 }
 
-func New(name string, dir string, exists bool) *Session {
+func New(name string, dir string, exists bool, lastAttached int64) *Session {
 	return &Session{
-		Name:   name,
-		Dir:    dir,
-		Exists: exists,
+		Name:         name,
+		Dir:          dir,
+		Exists:       exists,
+		LastAttached: lastAttached,
 	}
 }
 
@@ -86,6 +89,10 @@ func (f *Finder) List(onlyExisting bool) []*Session {
 	var sessions []*Session
 	sessions = f.repository.AllSessions()
 
+	slices.SortFunc(sessions, func(a, b *Session) int {
+		return cmp.Compare(b.LastAttached, a.LastAttached)
+	})
+
 	if !onlyExisting {
 		for _, pd := range f.getAllPreDefinedSessions() {
 			found := slices.ContainsFunc(sessions, func(s *Session) bool {
@@ -112,7 +119,7 @@ func (f *Finder) List(onlyExisting bool) []*Session {
 
 func (f *Finder) findExistingSession(name string) (*Session, error) {
 	if f.repository.HasSession(name) {
-		return New(name, "", true), nil
+		return New(name, "", true, 0), nil
 	}
 	return nil, nil
 }
@@ -141,7 +148,7 @@ func (f *Finder) findPreDefinedSession(name string) (*Session, error) {
 			continue
 		}
 
-		return New(pd.Name, dir, false), nil
+		return New(pd.Name, dir, false, 0), nil
 	}
 	return nil, nil
 }
@@ -154,7 +161,7 @@ func (f *Finder) findSmartSessionDirectorySession(name string) (*Session, error)
 		}
 
 		if dirExists(dir) {
-			return New(name, dir, false), nil
+			return New(name, dir, false, 0), nil
 		}
 	}
 	return nil, nil
@@ -167,10 +174,10 @@ func (f *Finder) getAllPreDefinedSessions() []*Session {
 		if err != nil {
 			continue
 		}
-		sessions = append(sessions, New(pd.Name, dir, false))
+		sessions = append(sessions, New(pd.Name, dir, false, 0))
 		if len(pd.Aliases) > 0 {
 			for _, alias := range pd.Aliases {
-				sessions = append(sessions, New(alias, dir, false))
+				sessions = append(sessions, New(alias, dir, false, 0))
 			}
 		}
 	}
@@ -196,7 +203,7 @@ func (f *Finder) getAllSmartSessionDirectorySessions() []*Session {
 					continue
 				}
 
-				sessions = append(sessions, New(file.Name(), fmt.Sprintf("%s/%s", dir, file.Name()), false))
+				sessions = append(sessions, New(file.Name(), fmt.Sprintf("%s/%s", dir, file.Name()), false, 0))
 			}
 		}
 	}
