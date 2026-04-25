@@ -332,6 +332,61 @@ func TestClient_SwitchSession(t *testing.T) {
 	}
 }
 
+func TestClient_CurrentSession(t *testing.T) {
+	tests := []struct {
+		name       string
+		crOutput   []byte
+		crError    error
+		wantResult string
+		wantArgs   []string
+		wantPath   string
+	}{
+		{
+			name:       "successful current session",
+			crOutput:   []byte("my-session\n"),
+			wantResult: "my-session",
+			wantArgs:   []string{"display-message", "-p", "#S"},
+			wantPath:   "/usr/bin/tmux",
+		},
+		{
+			name:       "error returns empty string",
+			crError:    errors.New("tmux error"),
+			wantResult: "",
+			wantArgs:   []string{"display-message", "-p", "#S"},
+			wantPath:   "/usr/bin/tmux",
+		},
+		{
+			name:       "trims whitespace",
+			crOutput:   []byte("  session-name  \n"),
+			wantResult: "session-name",
+			wantArgs:   []string{"display-message", "-p", "#S"},
+			wantPath:   "/usr/bin/tmux",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cr := &TestRunner{output: tt.crOutput, error: tt.crError}
+			client := NewClient(cr, "/usr/bin/tmux")
+
+			got := client.CurrentSession()
+			if got != tt.wantResult {
+				t.Fatalf("CurrentSession() = %q, want %q", got, tt.wantResult)
+			}
+
+			if cr.providedPath != tt.wantPath {
+				t.Fatalf("Expected path %s, got %s", tt.wantPath, cr.providedPath)
+			}
+
+			for i, wantArg := range tt.wantArgs {
+				if len(cr.providedArgs) <= i || cr.providedArgs[i] != wantArg {
+					t.Fatalf("Expected arg[%d] %s, got %v", i, wantArg, cr.providedArgs)
+				}
+			}
+		})
+	}
+}
+
 func TestClient_AllSessions(t *testing.T) {
 	tests := []struct {
 		name       string

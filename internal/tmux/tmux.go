@@ -74,6 +74,14 @@ func (c *Client) SwitchSession(s *session.Session) error {
 	return c.runner.Exec(c.path, []string{"tmux", "switch-client", "-t", s.Name})
 }
 
+func (c *Client) CurrentSession() string {
+	output, err := c.runner.Output(c.path, []string{"display-message", "-p", "#S"})
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
+}
+
 func (c *Client) AllSessions() []*session.Session {
 	var sessions []*session.Session
 	output, err := c.runner.Output(c.path, []string{"list-sessions", "-F", listSessionsFormat})

@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/griggsjared/tm/internal/session"
@@ -9,6 +10,7 @@ import (
 
 type mockTmuxRunner struct {
 	available           bool
+	currentSession      string
 	newSessionCalled    bool
 	newSessionDetached  bool
 	attachSessionCalled bool
@@ -21,6 +23,10 @@ type mockTmuxRunner struct {
 
 func (m *mockTmuxRunner) IsAvailable() bool {
 	return m.available
+}
+
+func (m *mockTmuxRunner) CurrentSession() string {
+	return m.currentSession
 }
 
 func (m *mockTmuxRunner) NewSession(s *session.Session, detached bool) error {
@@ -43,11 +49,13 @@ func (m *mockTmuxRunner) SwitchSession(s *session.Session) error {
 }
 
 type mockSessionFinder struct {
-	findCalled bool
-	listCalled bool
-	findResult *session.Session
-	findError  error
-	listResult []*session.Session
+	findCalled           bool
+	listCalled           bool
+	listExcludingCalled  bool
+	listExcludingExclude string
+	findResult           *session.Session
+	findError            error
+	listResult           []*session.Session
 }
 
 func (m *mockSessionFinder) Find(name string) (*session.Session, error) {
@@ -57,6 +65,12 @@ func (m *mockSessionFinder) Find(name string) (*session.Session, error) {
 
 func (m *mockSessionFinder) List(onlyActive bool) []*session.Session {
 	m.listCalled = true
+	return m.listResult
+}
+
+func (m *mockSessionFinder) ListExcluding(onlyExisting bool, exclude string) []*session.Session {
+	m.listExcludingCalled = true
+	m.listExcludingExclude = exclude
 	return m.listResult
 }
 
@@ -365,6 +379,124 @@ func TestApp_Run_TmuxUnavailable(t *testing.T) {
 	}
 	if tmuxMock.newSessionCalled {
 		t.Error("NewSession should not be called when tmux unavailable")
+	}
+}
+
+func TestApp_Run_InsideTmux_NoArgs(t *testing.T) {
+	t.Setenv("TMUX", "/tmp/tmux-1234/default,0,0")
+
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+	os.Args = []string{"tm"}
+
+	tmuxMock := &mockTmuxRunner{available: true, currentSession: "my-session"}
+	sessionMock := &mockSessionFinder{listResult: []*session.Session{{Name: "other"}}}
+	fzfMock := &mockFzfRunner{available: false}
+
+	app := New(tmuxMock, sessionMock, fzfMock, false)
+	app.Run()
+
+	if !sessionMock.listExcludingCalled {
+		t.Error("ListExcluding should be called when inside tmux with no args")
+	}
+	if sessionMock.listExcludingExclude != "my-session" {
+		t.Errorf("ListExcluding exclude = %q, want %q", sessionMock.listExcludingExclude, "my-session")
+	}
+}
+
+func TestApp_Run_OutsideTmux_NoArgs(t *testing.T) {
+	t.Setenv("TMUX", "")
+
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+	os.Args = []string{"tm"}
+
+	tmuxMock := &mockTmuxRunner{available: true}
+	sessionMock := &mockSessionFinder{listResult: []*session.Session{{Name: "session1"}}}
+	fzfMock := &mockFzfRunner{available: false}
+
+	app := New(tmuxMock, sessionMock, fzfMock, false)
+	app.Run()
+
+	if !sessionMock.listExcludingCalled {
+		t.Error("ListExcluding should be called when outside tmux with no args")
+	}
+	if sessionMock.listExcludingExclude != "" {
+		t.Errorf("ListExcluding exclude = %q, want empty string", sessionMock.listExcludingExclude)
+	}
+}
+
+func TestApp_Run_InsideTmux_ExactMatch(t *testing.T) {
+	t.Setenv("TMUX", "/tmp/tmux-1234/default,0,0")
+
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+	os.Args = []string{"tm", "exact"}
+
+	tmuxMock := &mockTmuxRunner{available: true, currentSession: "my-session"}
+	sessionMock := &mockSessionFinder{
+		findResult: &session.Session{Name: "exact", Exists: true},
+		listResult: []*session.Session{{Name: "exact", Exists: true}},
+	}
+	fzfMock := &mockFzfRunner{available: false}
+
+	app := New(tmuxMock, sessionMock, fzfMock, false)
+	app.Run()
+
+	if !sessionMock.findCalled {
+		t.Error("Find should be called for exact match")
+	}
+	if sessionMock.listExcludingCalled {
+		t.Error("ListExcluding should NOT be called when exact match succeeds")
+	}
+	if !tmuxMock.switchSessionCalled {
+		t.Error("SwitchSession should be called for exact match inside tmux")
+	}
+}
+
+func TestApp_Run_BuiltinsUseFullList(t *testing.T) {
+	t.Setenv("TMUX", "/tmp/tmux-1234/default,0,0")
+
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+	os.Args = []string{"tm", "ls"}
+
+	tmuxMock := &mockTmuxRunner{available: true, currentSession: "my-session"}
+	sessionMock := &mockSessionFinder{listResult: []*session.Session{{Name: "my-session", Exists: true}}}
+	fzfMock := &mockFzfRunner{available: false}
+
+	app := New(tmuxMock, sessionMock, fzfMock, false)
+	app.Run()
+
+	if !sessionMock.listCalled {
+		t.Error("List should be called for builtin commands")
+	}
+	if sessionMock.listExcludingCalled {
+		t.Error("ListExcluding should NOT be called for builtin commands")
+	}
+}
+
+func TestApp_Run_InsideTmux_PartialMatch(t *testing.T) {
+	t.Setenv("TMUX", "/tmp/tmux-1234/default,0,0")
+
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+	os.Args = []string{"tm", "oth"}
+
+	tmuxMock := &mockTmuxRunner{available: true, currentSession: "my-session"}
+	sessionMock := &mockSessionFinder{
+		listResult: []*session.Session{{Name: "other"}},
+	}
+	fzfMock := &mockFzfRunner{available: false}
+
+	app := New(tmuxMock, sessionMock, fzfMock, false)
+	app.Run()
+
+	if !sessionMock.listExcludingCalled {
+		t.Error("ListExcluding should be called when inside tmux with partial match")
+	}
+	if sessionMock.listExcludingExclude != "my-session" {
+		t.Errorf("ListExcluding exclude = %q, want %q", sessionMock.listExcludingExclude, "my-session")
 	}
 }
 

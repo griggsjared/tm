@@ -13,11 +13,13 @@ type TmuxRunner interface {
 	NewSession(s *session.Session, detached bool) error
 	AttachSession(s *session.Session) error
 	SwitchSession(s *session.Session) error
+	CurrentSession() string
 }
 
 type SessionFinder interface {
 	Find(name string) (*session.Session, error)
 	List(onlyActive bool) []*session.Session
+	ListExcluding(onlyExisting bool, exclude string) []*session.Session
 }
 
 type FzfRunner interface {
@@ -47,9 +49,14 @@ func (a *App) Run() {
 		return
 	}
 
+	var currentSession string
+	if os.Getenv("TMUX") != "" {
+		currentSession = a.tmuxRunner.CurrentSession()
+	}
+
 	// No arguments: select from all sessions
 	if len(os.Args) < 2 {
-		sessions := a.sessionFinder.List(false)
+		sessions := a.sessionFinder.ListExcluding(false, currentSession)
 		selected, err := a.selectSession(sessions, "")
 		if err != nil {
 			fmt.Println("Error:", err)
@@ -83,7 +90,7 @@ func (a *App) Run() {
 	}
 
 	// No exact match - filter by partial
-	allSessions := a.sessionFinder.List(false)
+	allSessions := a.sessionFinder.ListExcluding(false, currentSession)
 	matches := filterSessions(allSessions, input)
 
 	if len(matches) == 1 {

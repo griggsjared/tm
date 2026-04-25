@@ -85,6 +85,33 @@ func (f *Finder) Find(name string) (*Session, error) {
 	return nil, nil
 }
 
+func (f *Finder) ListExcluding(onlyExisting bool, exclude string) []*Session {
+	all := f.List(onlyExisting)
+	if exclude == "" {
+		return all
+	}
+
+	exclusionSet := make(map[string]struct{})
+	exclusionSet[exclude] = struct{}{}
+
+	for _, pd := range f.preDefinedSessions {
+		names := nameToMatch(pd)
+		if slices.Contains(names, exclude) {
+			for _, n := range names {
+				exclusionSet[n] = struct{}{}
+			}
+		}
+	}
+
+	var filtered []*Session
+	for _, s := range all {
+		if _, ok := exclusionSet[s.Name]; !ok {
+			filtered = append(filtered, s)
+		}
+	}
+	return filtered
+}
+
 func (f *Finder) List(onlyExisting bool) []*Session {
 	var sessions []*Session
 	sessions = f.repository.AllSessions()

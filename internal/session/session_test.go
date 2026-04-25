@@ -280,6 +280,86 @@ func TestServiceFind(t *testing.T) {
 	}
 }
 
+func TestListExcluding(t *testing.T) {
+	tmp := t.TempDir()
+	predefinedDir := filepath.Join(tmp, "predefined")
+	os.Mkdir(predefinedDir, 0755)
+
+	existing := []*Session{
+		{Name: "session-a", Dir: "/tmp/a", Exists: true, LastAttached: 3000},
+		{Name: "session-b", Dir: "/tmp/b", Exists: true, LastAttached: 2000},
+		{Name: "session-c", Dir: "/tmp/c", Exists: true, LastAttached: 1000},
+	}
+
+	pre := []PreDefinedSession{
+		{Name: "predefined", Dir: predefinedDir, Aliases: []string{"pd", "pre"}},
+		{Name: "other", Dir: predefinedDir},
+	}
+
+	finder := NewFinder(&mockTmuxRepository{allSessions: existing}, pre, nil)
+
+	tests := []struct {
+		name         string
+		exclude      string
+		wantNames    []string
+		wantNotFound []string
+	}{
+		{
+			name:      "empty exclude returns full list",
+			exclude:   "",
+			wantNames: []string{"session-a", "session-b", "session-c", "other", "pd", "pre", "predefined"},
+		},
+		{
+			name:         "exclude non-predefined removes only that name",
+			exclude:      "session-b",
+			wantNames:    []string{"session-a", "session-c", "other", "pd", "pre", "predefined"},
+			wantNotFound: []string{"session-b"},
+		},
+		{
+			name:         "exclude predefined canonical removes canonical and aliases",
+			exclude:      "predefined",
+			wantNames:    []string{"session-a", "session-b", "session-c", "other"},
+			wantNotFound: []string{"predefined", "pd", "pre"},
+		},
+		{
+			name:         "exclude predefined alias removes canonical and aliases",
+			exclude:      "pd",
+			wantNames:    []string{"session-a", "session-b", "session-c", "other"},
+			wantNotFound: []string{"predefined", "pd", "pre"},
+		},
+		{
+			name:         "only matching predefined session is excluded",
+			exclude:      "other",
+			wantNames:    []string{"session-a", "session-b", "session-c", "pd", "pre", "predefined"},
+			wantNotFound: []string{"other"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := finder.ListExcluding(false, tt.exclude)
+
+			if len(got) != len(tt.wantNames) {
+				t.Fatalf("expected %d sessions, got %d", len(tt.wantNames), len(got))
+			}
+
+			for i, want := range tt.wantNames {
+				if got[i].Name != want {
+					t.Errorf("position %d: expected %s, got %s", i, want, got[i].Name)
+				}
+			}
+
+			for _, notWant := range tt.wantNotFound {
+				for _, s := range got {
+					if s.Name == notWant {
+						t.Errorf("expected %s to be excluded, but it was found", notWant)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestList_SortedByLastAttached(t *testing.T) {
 	sessions := []*Session{
 		{Name: "oldest", Dir: "/tmp/oldest", Exists: true, LastAttached: 1000},
