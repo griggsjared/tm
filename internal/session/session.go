@@ -94,13 +94,15 @@ func (f *Finder) List(onlyExisting bool) []*Session {
 	})
 
 	if !onlyExisting {
+		var nonExisting []*Session
+
 		for _, pd := range f.getAllPreDefinedSessions() {
 			found := slices.ContainsFunc(sessions, func(s *Session) bool {
 				return s.Name == pd.Name
 			})
 
 			if !found {
-				sessions = append(sessions, pd)
+				nonExisting = append(nonExisting, pd)
 			}
 		}
 
@@ -110,9 +112,15 @@ func (f *Finder) List(onlyExisting bool) []*Session {
 			})
 
 			if !found {
-				sessions = append(sessions, sd)
+				nonExisting = append(nonExisting, sd)
 			}
 		}
+
+		slices.SortFunc(nonExisting, func(a, b *Session) int {
+			return cmp.Compare(a.Name, b.Name)
+		})
+
+		sessions = append(sessions, nonExisting...)
 	}
 	return sessions
 }

@@ -302,6 +302,44 @@ func TestList_SortedByLastAttached(t *testing.T) {
 	}
 }
 
+func TestList_MixedSessionsOrdering(t *testing.T) {
+	preTmp := t.TempDir()
+	predefinedDirM := filepath.Join(preTmp, "predefined-m")
+	os.Mkdir(predefinedDirM, 0755)
+	predefinedDirA := filepath.Join(preTmp, "predefined-a")
+	os.Mkdir(predefinedDirA, 0755)
+
+	smartTmp := t.TempDir()
+	os.Mkdir(filepath.Join(smartTmp, "smart-b"), 0755)
+	os.Mkdir(filepath.Join(smartTmp, "smart-z"), 0755)
+	os.Mkdir(filepath.Join(smartTmp, "smart-c"), 0755)
+
+	existing := []*Session{
+		{Name: "existing-oldest", Dir: "/tmp/existing-oldest", Exists: true, LastAttached: 1000},
+		{Name: "existing-newest", Dir: "/tmp/existing-newest", Exists: true, LastAttached: 3000},
+	}
+
+	pre := []PreDefinedSession{
+		{Name: "predefined-m", Dir: predefinedDirM},
+		{Name: "predefined-a", Dir: predefinedDirA},
+	}
+
+	smart := []SmartDirectory{{Dir: smartTmp}}
+
+	finder := NewFinder(&mockTmuxRepository{allSessions: existing}, pre, smart)
+	got := finder.List(false)
+
+	wantOrder := []string{"existing-newest", "existing-oldest", "predefined-a", "predefined-m", "smart-b", "smart-c", "smart-z"}
+	if len(got) != len(wantOrder) {
+		t.Fatalf("expected %d sessions, got %d", len(wantOrder), len(got))
+	}
+	for i, name := range wantOrder {
+		if got[i].Name != name {
+			t.Errorf("position %d: expected %s, got %s", i, name, got[i].Name)
+		}
+	}
+}
+
 func TestDirExists(t *testing.T) {
 	tmp := t.TempDir()
 	exists := dirExists(tmp)
