@@ -28,6 +28,7 @@ tm session-name # Exact match or fuzzy search
 tm ls           # List active sessions
 tm ls-all       # List all sessions (including pre-defined)
 tm status       # Check tm and its dependencies
+tm version      # Show tm version
 ```
 
 ### How it works
