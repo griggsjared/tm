@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/griggsjared/tm/internal/session"
@@ -10,6 +9,7 @@ import (
 
 type TmuxRunner interface {
 	IsAvailable() bool
+	InsideTmux() bool
 	NewSession(s *session.Session, detached bool) error
 	AttachSession(s *session.Session) error
 	SwitchSession(s *session.Session) error
@@ -60,7 +60,7 @@ func (a *App) Run(query string) {
 }
 
 func (a *App) currentSession() string {
-	if os.Getenv("TMUX") != "" {
+	if a.tmuxRunner.InsideTmux() {
 		return a.tmuxRunner.CurrentSession()
 	}
 	return ""
@@ -160,7 +160,7 @@ func (a *App) selectSession(sessions []*session.Session, query string) (*session
 }
 
 func (a *App) attachToSession(s *session.Session) error {
-	if os.Getenv("TMUX") != "" {
+	if a.tmuxRunner.InsideTmux() {
 		if !s.Exists {
 			a.debugMsg(fmt.Sprintf("Creating new session: %s", s.Name))
 			if err := a.tmuxRunner.NewSession(s, true); err != nil {

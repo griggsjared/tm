@@ -9,6 +9,7 @@ import (
 
 type mockTmuxRunner struct {
 	available           bool
+	insideTmux          bool
 	currentSession      string
 	newSessionCalled    bool
 	newSessionDetached  bool
@@ -22,6 +23,10 @@ type mockTmuxRunner struct {
 
 func (m *mockTmuxRunner) IsAvailable() bool {
 	return m.available
+}
+
+func (m *mockTmuxRunner) InsideTmux() bool {
+	return m.insideTmux
 }
 
 func (m *mockTmuxRunner) CurrentSession() string {
@@ -232,14 +237,9 @@ func TestAppAttachToSession(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.insideTmux {
-				t.Setenv("TMUX", "/tmp/tmux-1234/default,0,0")
-			} else {
-				t.Setenv("TMUX", "")
-			}
-
 			tmuxMock := &mockTmuxRunner{
 				available:          true,
+				insideTmux:         tt.insideTmux,
 				newSessionError:    tt.newSessionErr,
 				attachSessionError: tt.attachSessionErr,
 				switchSessionError: tt.switchSessionErr,
@@ -382,9 +382,7 @@ func TestApp_Run_TmuxUnavailable(t *testing.T) {
 }
 
 func TestApp_Run_InsideTmux_NoArgs(t *testing.T) {
-	t.Setenv("TMUX", "/tmp/tmux-1234/default,0,0")
-
-	tmuxMock := &mockTmuxRunner{available: true, currentSession: "my-session"}
+	tmuxMock := &mockTmuxRunner{available: true, insideTmux: true, currentSession: "my-session"}
 	sessionMock := &mockSessionFinder{listResult: []*session.Session{{Name: "other"}}}
 	fzfMock := &mockFzfRunner{available: false}
 
@@ -400,8 +398,6 @@ func TestApp_Run_InsideTmux_NoArgs(t *testing.T) {
 }
 
 func TestApp_Run_OutsideTmux_NoArgs(t *testing.T) {
-	t.Setenv("TMUX", "")
-
 	tmuxMock := &mockTmuxRunner{available: true}
 	sessionMock := &mockSessionFinder{listResult: []*session.Session{{Name: "session1"}}}
 	fzfMock := &mockFzfRunner{available: false}
@@ -418,9 +414,7 @@ func TestApp_Run_OutsideTmux_NoArgs(t *testing.T) {
 }
 
 func TestApp_Run_InsideTmux_ExactMatch(t *testing.T) {
-	t.Setenv("TMUX", "/tmp/tmux-1234/default,0,0")
-
-	tmuxMock := &mockTmuxRunner{available: true, currentSession: "my-session"}
+	tmuxMock := &mockTmuxRunner{available: true, insideTmux: true, currentSession: "my-session"}
 	sessionMock := &mockSessionFinder{
 		findResult: &session.Session{Name: "exact", Exists: true},
 		listResult: []*session.Session{{Name: "exact", Exists: true}},
@@ -442,9 +436,7 @@ func TestApp_Run_InsideTmux_ExactMatch(t *testing.T) {
 }
 
 func TestApp_Run_BuiltinsUseFullList(t *testing.T) {
-	t.Setenv("TMUX", "/tmp/tmux-1234/default,0,0")
-
-	tmuxMock := &mockTmuxRunner{available: true, currentSession: "my-session"}
+	tmuxMock := &mockTmuxRunner{available: true, insideTmux: true, currentSession: "my-session"}
 	sessionMock := &mockSessionFinder{listResult: []*session.Session{{Name: "my-session", Exists: true}}}
 	fzfMock := &mockFzfRunner{available: false}
 
@@ -460,9 +452,7 @@ func TestApp_Run_BuiltinsUseFullList(t *testing.T) {
 }
 
 func TestApp_Run_InsideTmux_PartialMatch(t *testing.T) {
-	t.Setenv("TMUX", "/tmp/tmux-1234/default,0,0")
-
-	tmuxMock := &mockTmuxRunner{available: true, currentSession: "my-session"}
+	tmuxMock := &mockTmuxRunner{available: true, insideTmux: true, currentSession: "my-session"}
 	sessionMock := &mockSessionFinder{
 		listResult: []*session.Session{{Name: "other"}},
 	}

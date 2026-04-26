@@ -47,6 +47,10 @@ func (c *Client) IsAvailable() bool {
 	return c.path != ""
 }
 
+func (c *Client) InsideTmux() bool {
+	return os.Getenv("TMUX") != ""
+}
+
 func (c *Client) Path() string {
 	return c.path
 }

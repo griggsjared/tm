@@ -387,6 +387,40 @@ func TestClient_CurrentSession(t *testing.T) {
 	}
 }
 
+func TestClient_InsideTmux(t *testing.T) {
+	tests := []struct {
+		name     string
+		tmuxEnv  string
+		wantBool bool
+	}{
+		{
+			name:     "TMUX is set",
+			tmuxEnv:  "/tmp/tmux-1234/default,0,0",
+			wantBool: true,
+		},
+		{
+			name:     "TMUX is empty",
+			tmuxEnv:  "",
+			wantBool: false,
+		},
+		{
+			name:     "TMUX is unset",
+			wantBool: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("TMUX", tt.tmuxEnv)
+			client := NewClient(&TestRunner{}, "/usr/bin/tmux")
+			got := client.InsideTmux()
+			if got != tt.wantBool {
+				t.Fatalf("InsideTmux() = %v, want %v", got, tt.wantBool)
+			}
+		})
+	}
+}
+
 func TestClient_AllSessions(t *testing.T) {
 	tests := []struct {
 		name       string
