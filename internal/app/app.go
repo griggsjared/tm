@@ -43,41 +43,50 @@ func New(tr TmuxRunner, ss SessionFinder, fr FzfRunner, debug bool) *App {
 	}
 }
 
-func (a *App) Run() {
+func (a *App) Run(query string) {
 	if !a.tmuxRunner.IsAvailable() {
 		fmt.Println("Error: tmux not found. Install tmux or set TM_TMUX_PATH.")
 		return
 	}
 
-	var currentSession string
-	if os.Getenv("TMUX") != "" {
-		currentSession = a.tmuxRunner.CurrentSession()
-	}
+	currentSession := a.currentSession()
 
-	// No arguments: select from all sessions
-	if len(os.Args) < 2 {
-		sessions := a.sessionFinder.ListExcluding(false, currentSession)
-		selected, err := a.selectSession(sessions, "")
-		if err != nil {
-			fmt.Println("Error:", err)
-			return
-		}
-		if selected != nil {
-			if err := a.attachToSession(selected); err != nil {
-				fmt.Println(err)
-			}
-		}
+	if query == "" {
+		a.runInteractive(currentSession)
 		return
 	}
 
-	input := os.Args[1]
+	a.runWithQuery(query, currentSession)
+}
 
-	if a.handleBuiltinCommand(input) {
+func (a *App) currentSession() string {
+	if os.Getenv("TMUX") != "" {
+		return a.tmuxRunner.CurrentSession()
+	}
+	return ""
+}
+
+func (a *App) runInteractive(currentSession string) {
+	sessions := a.sessionFinder.ListExcluding(false, currentSession)
+	selected, err := a.selectSession(sessions, "")
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	if selected != nil {
+		if err := a.attachToSession(selected); err != nil {
+			fmt.Println(err)
+		}
+	}
+}
+
+func (a *App) runWithQuery(query, currentSession string) {
+	if a.handleBuiltinCommand(query) {
 		return
 	}
 
 	// Try exact match first
-	session, err := a.sessionFinder.Find(input)
+	session, err := a.sessionFinder.Find(query)
 	if err != nil {
 		fmt.Println("Error finding session:", err)
 		return
@@ -91,7 +100,7 @@ func (a *App) Run() {
 
 	// No exact match - filter by partial
 	allSessions := a.sessionFinder.ListExcluding(false, currentSession)
-	matches := filterSessions(allSessions, input)
+	matches := filterSessions(allSessions, query)
 
 	if len(matches) == 1 {
 		// Single partial match - attach directly
@@ -102,7 +111,7 @@ func (a *App) Run() {
 	}
 
 	// 0 or >1 matches - need selection
-	selected, err := a.selectSession(allSessions, input)
+	selected, err := a.selectSession(allSessions, query)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return

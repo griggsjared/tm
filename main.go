@@ -15,27 +15,12 @@ import (
 
 var version = "dev"
 
-func getVersion() string {
-	if version != "dev" {
-		return version
-	}
-	if info, ok := debug.ReadBuildInfo(); ok {
-		if info.Main.Version != "" && info.Main.Version != "(devel)" {
-			return info.Main.Version
-		}
-	}
-	return "dev"
-}
-
 func main() {
 	os.Exit(run())
 }
 
 func run() int {
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		fmt.Println("tm version", getVersion())
-		return 0
-	}
+	cmd := parseCommand(os.Args[1:])
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -46,19 +31,40 @@ func run() int {
 	tmuxRunner := tmux.NewRunner()
 	tmuxClient := tmux.NewClient(tmuxRunner, cfg.TmuxPath)
 	fzfRunner := fzf.NewRunner(cfg.FzfPath)
-
-	if len(os.Args) > 1 && os.Args[1] == "status" {
-		return status.New(getVersion(), tmuxClient, fzfRunner).Run()
-	}
-
 	sessionFinder := session.NewFinder(tmuxClient, cfg.PreDefinedSessions, cfg.SmartDirectories)
 
-	app.New(
-		tmuxClient,
-		sessionFinder,
-		fzfRunner,
-		cfg.Debug,
-	).Run()
+	switch cmd {
+	case "version":
+		fmt.Println("tm version", getVersion())
+		return 0
+	case "status":
+		return status.New(getVersion(), tmuxClient, fzfRunner).Run()
+	default:
+		app.New(
+			tmuxClient,
+			sessionFinder,
+			fzfRunner,
+			cfg.Debug,
+		).Run(cmd)
+		return 0
+	}
+}
 
-	return 0
+func parseCommand(args []string) string {
+	if len(args) > 0 {
+		return args[0]
+	}
+	return ""
+}
+
+func getVersion() string {
+	if version != "dev" {
+		return version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if info.Main.Version != "" && info.Main.Version != "(devel)" {
+			return info.Main.Version
+		}
+	}
+	return "dev"
 }
