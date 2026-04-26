@@ -10,6 +10,7 @@ import (
 type TmuxRunner interface {
 	IsAvailable() bool
 	InsideTmux() bool
+	Path() string
 	NewSession(s *session.Session, detached bool) error
 	AttachSession(s *session.Session) error
 	SwitchSession(s *session.Session) error
@@ -24,18 +25,21 @@ type SessionFinder interface {
 
 type FzfRunner interface {
 	IsAvailable() bool
+	Path() string
 	Select(items []string, query string) (int, bool, error)
 }
 
 type App struct {
+	version       string
 	debug         bool
 	tmuxRunner    TmuxRunner
 	sessionFinder SessionFinder
 	fzfRunner     FzfRunner
 }
 
-func New(tr TmuxRunner, ss SessionFinder, fr FzfRunner, debug bool) *App {
+func New(tr TmuxRunner, ss SessionFinder, fr FzfRunner, debug bool, version string) *App {
 	return &App{
+		version:       version,
 		debug:         debug,
 		tmuxRunner:    tr,
 		sessionFinder: ss,
@@ -43,20 +47,30 @@ func New(tr TmuxRunner, ss SessionFinder, fr FzfRunner, debug bool) *App {
 	}
 }
 
-func (a *App) Run(query string) {
+func (a *App) Run(query string) int {
+	if query == "version" {
+		fmt.Println("tm version", a.version)
+		return 0
+	}
+
+	if query == "status" {
+		return a.runStatus()
+	}
+
 	if !a.tmuxRunner.IsAvailable() {
 		fmt.Println("Error: tmux not found. Install tmux or set TM_TMUX_PATH.")
-		return
+		return 1
 	}
 
 	currentSession := a.currentSession()
 
 	if query == "" {
 		a.runInteractive(currentSession)
-		return
+		return 0
 	}
 
 	a.runWithQuery(query, currentSession)
+	return 0
 }
 
 func (a *App) currentSession() string {
@@ -64,6 +78,32 @@ func (a *App) currentSession() string {
 		return a.tmuxRunner.CurrentSession()
 	}
 	return ""
+}
+
+func (a *App) runStatus() int {
+	exitCode := 0
+
+	printStatusLine("tm", fmt.Sprintf("ok (%s)", a.version))
+
+	if a.tmuxRunner.IsAvailable() {
+		printStatusLine("tmux", fmt.Sprintf("ok (%s)", a.tmuxRunner.Path()))
+	} else {
+		printStatusLine("tmux", "missing")
+		exitCode = 1
+	}
+
+	if a.fzfRunner.IsAvailable() {
+		printStatusLine("fzf", fmt.Sprintf("ok (%s) (optional)", a.fzfRunner.Path()))
+	} else {
+		printStatusLine("fzf", "missing (optional)")
+	}
+
+	return exitCode
+}
+
+func printStatusLine(name, status string) {
+	dots := strings.Repeat(".", 12-len(name))
+	fmt.Printf("%s%s %s\n", name, dots, status)
 }
 
 func (a *App) runInteractive(currentSession string) {

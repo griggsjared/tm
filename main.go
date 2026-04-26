@@ -9,7 +9,6 @@ import (
 	"github.com/griggsjared/tm/internal/config"
 	"github.com/griggsjared/tm/internal/fzf"
 	"github.com/griggsjared/tm/internal/session"
-	"github.com/griggsjared/tm/internal/status"
 	"github.com/griggsjared/tm/internal/tmux"
 )
 
@@ -33,21 +32,7 @@ func run() int {
 	fzfRunner := fzf.NewRunner(cfg.FzfPath)
 	sessionFinder := session.NewFinder(tmuxClient, cfg.PreDefinedSessions, cfg.SmartDirectories)
 
-	switch cmd {
-	case "version":
-		fmt.Println("tm version", getVersion())
-		return 0
-	case "status":
-		return status.New(getVersion(), tmuxClient, fzfRunner).Run()
-	default:
-		app.New(
-			tmuxClient,
-			sessionFinder,
-			fzfRunner,
-			cfg.Debug,
-		).Run(cmd)
-		return 0
-	}
+	return app.New(tmuxClient, sessionFinder, fzfRunner, cfg.Debug, getVersion()).Run(cmd)
 }
 
 func parseCommand(args []string) string {
