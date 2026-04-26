@@ -7,7 +7,7 @@ import (
 	"github.com/griggsjared/tm/internal/session"
 )
 
-type mockTmuxRunner struct {
+type mockTmuxClient struct {
 	available           bool
 	insideTmux          bool
 	path                string
@@ -22,36 +22,36 @@ type mockTmuxRunner struct {
 	lastSession         *session.Session
 }
 
-func (m *mockTmuxRunner) IsAvailable() bool {
+func (m *mockTmuxClient) IsAvailable() bool {
 	return m.available
 }
 
-func (m *mockTmuxRunner) InsideTmux() bool {
+func (m *mockTmuxClient) InsideTmux() bool {
 	return m.insideTmux
 }
 
-func (m *mockTmuxRunner) Path() string {
+func (m *mockTmuxClient) Path() string {
 	return m.path
 }
 
-func (m *mockTmuxRunner) CurrentSession() string {
+func (m *mockTmuxClient) CurrentSession() string {
 	return m.currentSession
 }
 
-func (m *mockTmuxRunner) NewSession(s *session.Session, detached bool) error {
+func (m *mockTmuxClient) NewSession(s *session.Session, detached bool) error {
 	m.newSessionCalled = true
 	m.newSessionDetached = detached
 	m.lastSession = s
 	return m.newSessionError
 }
 
-func (m *mockTmuxRunner) AttachSession(s *session.Session) error {
+func (m *mockTmuxClient) AttachSession(s *session.Session) error {
 	m.attachSessionCalled = true
 	m.lastSession = s
 	return m.attachSessionError
 }
 
-func (m *mockTmuxRunner) SwitchSession(s *session.Session) error {
+func (m *mockTmuxClient) SwitchSession(s *session.Session) error {
 	m.switchSessionCalled = true
 	m.lastSession = s
 	return m.switchSessionError
@@ -247,7 +247,7 @@ func TestAppAttachToSession(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmuxMock := &mockTmuxRunner{
+			tmuxMock := &mockTmuxClient{
 				available:          true,
 				insideTmux:         tt.insideTmux,
 				newSessionError:    tt.newSessionErr,
@@ -334,7 +334,7 @@ func TestAppSelectSession(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmuxMock := &mockTmuxRunner{available: true}
+			tmuxMock := &mockTmuxClient{available: true}
 			fzfMock := &mockFzfRunner{
 				available:    tt.fzfAvailable,
 				selectResult: tt.fzfResult,
@@ -365,12 +365,12 @@ func TestAppSelectSession(t *testing.T) {
 	}
 }
 
-var _ TmuxRunner = &mockTmuxRunner{}
+var _ TmuxClient = &mockTmuxClient{}
 var _ SessionFinder = &mockSessionFinder{}
 var _ FzfRunner = &mockFzfRunner{}
 
 func TestApp_Run_TmuxUnavailable(t *testing.T) {
-	tmuxMock := &mockTmuxRunner{available: false}
+	tmuxMock := &mockTmuxClient{available: false}
 	sessionMock := &mockSessionFinder{}
 	fzfMock := &mockFzfRunner{available: false}
 
@@ -392,7 +392,7 @@ func TestApp_Run_TmuxUnavailable(t *testing.T) {
 }
 
 func TestApp_Run_InsideTmux_NoArgs(t *testing.T) {
-	tmuxMock := &mockTmuxRunner{available: true, insideTmux: true, currentSession: "my-session"}
+	tmuxMock := &mockTmuxClient{available: true, insideTmux: true, currentSession: "my-session"}
 	sessionMock := &mockSessionFinder{listResult: []*session.Session{{Name: "other"}}}
 	fzfMock := &mockFzfRunner{available: false}
 
@@ -408,7 +408,7 @@ func TestApp_Run_InsideTmux_NoArgs(t *testing.T) {
 }
 
 func TestApp_Run_OutsideTmux_NoArgs(t *testing.T) {
-	tmuxMock := &mockTmuxRunner{available: true}
+	tmuxMock := &mockTmuxClient{available: true}
 	sessionMock := &mockSessionFinder{listResult: []*session.Session{{Name: "session1"}}}
 	fzfMock := &mockFzfRunner{available: false}
 
@@ -424,7 +424,7 @@ func TestApp_Run_OutsideTmux_NoArgs(t *testing.T) {
 }
 
 func TestApp_Run_InsideTmux_ExactMatch(t *testing.T) {
-	tmuxMock := &mockTmuxRunner{available: true, insideTmux: true, currentSession: "my-session"}
+	tmuxMock := &mockTmuxClient{available: true, insideTmux: true, currentSession: "my-session"}
 	sessionMock := &mockSessionFinder{
 		findResult: &session.Session{Name: "exact", Exists: true},
 		listResult: []*session.Session{{Name: "exact", Exists: true}},
@@ -446,7 +446,7 @@ func TestApp_Run_InsideTmux_ExactMatch(t *testing.T) {
 }
 
 func TestApp_Run_BuiltinsUseFullList(t *testing.T) {
-	tmuxMock := &mockTmuxRunner{available: true, insideTmux: true, currentSession: "my-session"}
+	tmuxMock := &mockTmuxClient{available: true, insideTmux: true, currentSession: "my-session"}
 	sessionMock := &mockSessionFinder{listResult: []*session.Session{{Name: "my-session", Exists: true}}}
 	fzfMock := &mockFzfRunner{available: false}
 
@@ -462,7 +462,7 @@ func TestApp_Run_BuiltinsUseFullList(t *testing.T) {
 }
 
 func TestApp_Run_InsideTmux_PartialMatch(t *testing.T) {
-	tmuxMock := &mockTmuxRunner{available: true, insideTmux: true, currentSession: "my-session"}
+	tmuxMock := &mockTmuxClient{available: true, insideTmux: true, currentSession: "my-session"}
 	sessionMock := &mockSessionFinder{
 		listResult: []*session.Session{{Name: "other"}},
 	}
@@ -480,7 +480,7 @@ func TestApp_Run_InsideTmux_PartialMatch(t *testing.T) {
 }
 
 func TestApp_Run_Version(t *testing.T) {
-	tmuxMock := &mockTmuxRunner{available: false}
+	tmuxMock := &mockTmuxClient{available: false}
 	sessionMock := &mockSessionFinder{}
 	fzfMock := &mockFzfRunner{available: false}
 
@@ -537,7 +537,7 @@ func TestApp_Run_Status(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmuxMock := &mockTmuxRunner{available: tt.tmuxAvail, path: tt.tmuxPath}
+			tmuxMock := &mockTmuxClient{available: tt.tmuxAvail, path: tt.tmuxPath}
 			fzfMock := &mockFzfRunner{available: tt.fzfAvail, path: tt.fzfPath}
 			app := New(tmuxMock, &mockSessionFinder{}, fzfMock, false, "test")
 
@@ -550,7 +550,7 @@ func TestApp_Run_Status(t *testing.T) {
 }
 
 func TestApp_Run_TmuxUnavailable_ReturnsOne(t *testing.T) {
-	tmuxMock := &mockTmuxRunner{available: false}
+	tmuxMock := &mockTmuxClient{available: false}
 	sessionMock := &mockSessionFinder{}
 	fzfMock := &mockFzfRunner{available: false}
 

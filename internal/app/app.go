@@ -7,7 +7,7 @@ import (
 	"github.com/griggsjared/tm/internal/session"
 )
 
-type TmuxRunner interface {
+type TmuxClient interface {
 	IsAvailable() bool
 	InsideTmux() bool
 	Path() string
@@ -32,16 +32,16 @@ type FzfRunner interface {
 type App struct {
 	version       string
 	debug         bool
-	tmuxRunner    TmuxRunner
+	tmuxClient    TmuxClient
 	sessionFinder SessionFinder
 	fzfRunner     FzfRunner
 }
 
-func New(tr TmuxRunner, ss SessionFinder, fr FzfRunner, debug bool, version string) *App {
+func New(tc TmuxClient, ss SessionFinder, fr FzfRunner, debug bool, version string) *App {
 	return &App{
 		version:       version,
 		debug:         debug,
-		tmuxRunner:    tr,
+		tmuxClient:    tc,
 		sessionFinder: ss,
 		fzfRunner:     fr,
 	}
@@ -57,7 +57,7 @@ func (a *App) Run(query string) int {
 		return a.runStatus()
 	}
 
-	if !a.tmuxRunner.IsAvailable() {
+	if !a.tmuxClient.IsAvailable() {
 		fmt.Println("Error: tmux not found. Install tmux or set TM_TMUX_PATH.")
 		return 1
 	}
@@ -74,8 +74,8 @@ func (a *App) Run(query string) int {
 }
 
 func (a *App) currentSession() string {
-	if a.tmuxRunner.InsideTmux() {
-		return a.tmuxRunner.CurrentSession()
+	if a.tmuxClient.InsideTmux() {
+		return a.tmuxClient.CurrentSession()
 	}
 	return ""
 }
@@ -85,8 +85,8 @@ func (a *App) runStatus() int {
 
 	printStatusLine("tm", fmt.Sprintf("ok (%s)", a.version))
 
-	if a.tmuxRunner.IsAvailable() {
-		printStatusLine("tmux", fmt.Sprintf("ok (%s)", a.tmuxRunner.Path()))
+	if a.tmuxClient.IsAvailable() {
+		printStatusLine("tmux", fmt.Sprintf("ok (%s)", a.tmuxClient.Path()))
 	} else {
 		printStatusLine("tmux", "missing")
 		exitCode = 1
@@ -200,15 +200,15 @@ func (a *App) selectSession(sessions []*session.Session, query string) (*session
 }
 
 func (a *App) attachToSession(s *session.Session) error {
-	if a.tmuxRunner.InsideTmux() {
+	if a.tmuxClient.InsideTmux() {
 		if !s.Exists {
 			a.debugMsg(fmt.Sprintf("Creating new session: %s", s.Name))
-			if err := a.tmuxRunner.NewSession(s, true); err != nil {
+			if err := a.tmuxClient.NewSession(s, true); err != nil {
 				return fmt.Errorf("error creating session: %w", err)
 			}
 		}
 		a.debugMsg(fmt.Sprintf("Switching to session: %s", s.Name))
-		if err := a.tmuxRunner.SwitchSession(s); err != nil {
+		if err := a.tmuxClient.SwitchSession(s); err != nil {
 			return fmt.Errorf("error switching session: %w", err)
 		}
 		return nil
@@ -216,12 +216,12 @@ func (a *App) attachToSession(s *session.Session) error {
 
 	if !s.Exists {
 		a.debugMsg(fmt.Sprintf("Creating new session: %s", s.Name))
-		if err := a.tmuxRunner.NewSession(s, false); err != nil {
+		if err := a.tmuxClient.NewSession(s, false); err != nil {
 			return fmt.Errorf("error creating session: %w", err)
 		}
 	}
 	a.debugMsg(fmt.Sprintf("Attaching to session: %s", s.Name))
-	if err := a.tmuxRunner.AttachSession(s); err != nil {
+	if err := a.tmuxClient.AttachSession(s); err != nil {
 		return fmt.Errorf("error attaching to session: %w", err)
 	}
 	return nil
