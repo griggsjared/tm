@@ -101,11 +101,6 @@ func (a *App) runStatus() int {
 	return exitCode
 }
 
-func printStatusLine(name, status string) {
-	dots := strings.Repeat(".", 12-len(name))
-	fmt.Printf("%s%s %s\n", name, dots, status)
-}
-
 func (a *App) runInteractive(currentSession string) {
 	sessions := a.sessionFinder.ListExcluding(false, currentSession)
 	selected, err := a.selectSession(sessions, "")
@@ -227,14 +222,6 @@ func (a *App) attachToSession(s *session.Session) error {
 	return nil
 }
 
-func formatSessionLine(s *session.Session) string {
-	line := fmt.Sprintf("%s [%s]", s.Name, s.Dir)
-	if s.Exists {
-		line += " *"
-	}
-	return line
-}
-
 func (a *App) debugMsg(msg string) {
 	if a.debug {
 		fmt.Println(msg)
@@ -257,6 +244,19 @@ func (a *App) printSessionList(onlyExisting bool) {
 	for _, s := range a.sessionFinder.List(onlyExisting) {
 		fmt.Println(formatSessionLine(s))
 	}
+}
+
+func formatSessionLine(s *session.Session) string {
+	line := fmt.Sprintf("%s [%s]", s.Name, s.Dir)
+	if s.Exists {
+		line += " *"
+	}
+	return line
+}
+
+func printStatusLine(name, status string) {
+	dots := strings.Repeat(".", 12-len(name))
+	fmt.Printf("%s%s %s\n", name, dots, status)
 }
 
 func filterSessions(sessions []*session.Session, query string) []*session.Session {
