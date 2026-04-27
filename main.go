@@ -27,12 +27,11 @@ func run() int {
 		return 1
 	}
 
-	tmuxRunner := tmux.NewRunner()
-	tmuxClient := tmux.NewClient(tmuxRunner, cfg.TmuxPath)
-	fzfRunner := fzf.NewRunner(cfg.FzfPath)
+	tmuxClient := tmux.NewClient(tmux.NewRunner(), cfg.TmuxPath)
+	fzfClient := fzf.NewClient(fzf.NewRunner(), cfg.FzfPath)
 	sessionFinder := session.NewFinder(tmuxClient, cfg.PreDefinedSessions, cfg.SmartDirectories)
 
-	return app.New(tmuxClient, sessionFinder, fzfRunner, cfg.Debug, getVersion()).Run(cmd)
+	return app.New(tmuxClient, fzfClient, sessionFinder, cfg.Debug, getVersion()).Run(cmd)
 }
 
 func parseCommand(args []string) string {

@@ -1,6 +1,8 @@
 package fzf
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -9,33 +11,61 @@ import (
 	"strings"
 )
 
-type Runner struct {
-	path string
+type Runner interface {
+	Output(path string, args []string) ([]byte, error)
+	Run(path string, args []string, stdin io.Reader, stderr io.Writer) ([]byte, int, error)
 }
 
-// NewRunner creates a new Runner with an optional custom path.
-// If path is empty, it searches for fzf in PATH.
-// Customize fzf behavior via FZF_DEFAULT_OPTS in your environment.
-func NewRunner(path string) *Runner {
-	if path == "" {
-		if fzfPath, err := exec.LookPath("fzf"); err == nil {
-			path = fzfPath
+type FzfRunner struct{}
+
+func NewRunner() *FzfRunner {
+	return &FzfRunner{}
+}
+
+func (r *FzfRunner) Output(path string, args []string) ([]byte, error) {
+	return exec.Command(path, args...).Output()
+}
+
+func (r *FzfRunner) Run(path string, args []string, stdin io.Reader, stderr io.Writer) ([]byte, int, error) {
+	cmd := exec.Command(path, args...)
+	cmd.Stdin = stdin
+	cmd.Stderr = stderr
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	err := cmd.Run()
+	if err != nil {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+			return stdout.Bytes(), exitErr.ExitCode(), err
 		}
+		return stdout.Bytes(), -1, err
 	}
-
-	return &Runner{path: path}
+	return stdout.Bytes(), 0, nil
 }
 
-func (r *Runner) IsAvailable() bool {
-	return r.path != ""
+type Client struct {
+	runner Runner
+	path   string
 }
 
-func (r *Runner) Path() string {
-	return r.path
+// NewClient creates a new Client with the given Runner and optional custom path.
+// Customize fzf behavior via FZF_DEFAULT_OPTS in your environment.
+func NewClient(r Runner, path string) *Client {
+	return &Client{
+		runner: r,
+		path:   path,
+	}
 }
 
-func (r *Runner) Version() string {
-	output, err := exec.Command(r.path, "--version").Output()
+func (c *Client) IsAvailable() bool {
+	return c.path != ""
+}
+
+func (c *Client) Path() string {
+	return c.path
+}
+
+func (c *Client) Version() string {
+	output, err := c.runner.Output(c.path, []string{"--version"})
 	if err != nil {
 		return ""
 	}
@@ -46,63 +76,33 @@ func (r *Runner) Version() string {
 	return strings.TrimSpace(parts[0])
 }
 
-func (r *Runner) Select(items []string, query string) (int, bool, error) {
-	if !r.IsAvailable() {
+func (c *Client) Select(items []string, query string) (int, bool, error) {
+	if !c.IsAvailable() {
 		return 0, false, fmt.Errorf("fzf is not available")
 	}
 
 	args := make([]string, 0, 4)
 	args = append(args, "--select-1", "--exit-0", "--with-nth=2..", fmt.Sprintf("--query=%s", query))
 
-	cmd := exec.Command(r.path, args...)
-
-	stdinPipe, err := cmd.StdinPipe()
-	if err != nil {
-		return 0, false, fmt.Errorf("failed to create stdin pipe: %w", err)
+	var stdin bytes.Buffer
+	for i, item := range items {
+		fmt.Fprintf(&stdin, "%d\t%s\n", i+1, item)
 	}
 
-	cmd.Stderr = os.Stderr
-
-	stdoutPipe, err := cmd.StdoutPipe()
+	output, exitCode, err := c.runner.Run(c.path, args, &stdin, os.Stderr)
 	if err != nil {
-		return 0, false, fmt.Errorf("failed to create stdout pipe: %w", err)
-	}
-
-	if err := cmd.Start(); err != nil {
-		return 0, false, fmt.Errorf("failed to start fzf: %w", err)
-	}
-
-	go func() {
-		defer stdinPipe.Close()
-		for i, item := range items {
-			fmt.Fprintf(stdinPipe, "%d\t%s\n", i+1, item)
-		}
-	}()
-
-	output, err := io.ReadAll(stdoutPipe)
-	if err != nil {
-		return 0, false, fmt.Errorf("failed to read fzf output: %w", err)
-	}
-	selected := strings.TrimSpace(string(output))
-
-	err = cmd.Wait()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			if exitErr.ExitCode() == 1 || exitErr.ExitCode() == 130 {
-				return 0, false, nil
-			}
+		if exitCode == 1 || exitCode == 130 {
+			return 0, false, nil
 		}
 		return 0, false, fmt.Errorf("fzf error: %w", err)
 	}
 
+	selected := strings.TrimSpace(string(output))
 	if selected == "" {
 		return 0, false, nil
 	}
 
 	parts := strings.SplitN(selected, "\t", 2)
-	if len(parts) == 0 {
-		return 0, false, nil
-	}
 
 	idx, err := strconv.Atoi(parts[0])
 	if err != nil {

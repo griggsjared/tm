@@ -105,8 +105,8 @@ func (c *Client) AllSessions() []*session.Session {
 		return sessions
 	}
 
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(output), "\n")
+	for line := range lines {
 		if line == "" {
 			continue
 		}

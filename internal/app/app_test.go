@@ -91,7 +91,7 @@ func (m *mockSessionFinder) ListExcluding(onlyExisting bool, exclude string) []*
 	return m.listResult
 }
 
-type mockFzfRunner struct {
+type mockFzfClient struct {
 	available     bool
 	path          string
 	version       string
@@ -102,19 +102,19 @@ type mockFzfRunner struct {
 	providedQuery string
 }
 
-func (m *mockFzfRunner) IsAvailable() bool {
+func (m *mockFzfClient) IsAvailable() bool {
 	return m.available
 }
 
-func (m *mockFzfRunner) Path() string {
+func (m *mockFzfClient) Path() string {
 	return m.path
 }
 
-func (m *mockFzfRunner) Version() string {
+func (m *mockFzfClient) Version() string {
 	return m.version
 }
 
-func (m *mockFzfRunner) Select(items []string, query string) (int, bool, error) {
+func (m *mockFzfClient) Select(items []string, query string) (int, bool, error) {
 	m.providedItems = items
 	m.providedQuery = query
 	return m.selectResult, m.selectOk, m.selectError
@@ -288,7 +288,7 @@ func TestAppAttachToSession(t *testing.T) {
 				attachSessionError: tt.attachSessionErr,
 				switchSessionError: tt.switchSessionErr,
 			}
-			app := New(tmuxMock, &mockSessionFinder{}, &mockFzfRunner{}, false, "test")
+			app := New(tmuxMock, &mockFzfClient{}, &mockSessionFinder{}, false, "test")
 			err := app.attachToSession(tt.session)
 
 			if (err != nil) != tt.wantErr {
@@ -369,7 +369,7 @@ func TestAppSelectSession(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmuxMock := &mockTmuxClient{available: true}
-			fzfMock := &mockFzfRunner{
+			fzfMock := &mockFzfClient{
 				available:    tt.fzfAvailable,
 				selectResult: tt.fzfResult,
 				selectOk:     tt.fzfOk,
@@ -377,7 +377,7 @@ func TestAppSelectSession(t *testing.T) {
 			}
 			sessionMock := &mockSessionFinder{}
 
-			app := New(tmuxMock, sessionMock, fzfMock, false, "test")
+			app := New(tmuxMock, fzfMock, sessionMock, false, "test")
 			got, err := app.selectSession(tt.sessions, tt.query)
 
 			if (err != nil) != tt.wantErr {
@@ -401,14 +401,14 @@ func TestAppSelectSession(t *testing.T) {
 
 var _ TmuxClient = &mockTmuxClient{}
 var _ SessionFinder = &mockSessionFinder{}
-var _ FzfRunner = &mockFzfRunner{}
+var _ FzfClient = &mockFzfClient{}
 
 func TestApp_Run_TmuxUnavailable(t *testing.T) {
 	tmuxMock := &mockTmuxClient{available: false}
 	sessionMock := &mockSessionFinder{}
-	fzfMock := &mockFzfRunner{available: false}
+	fzfMock := &mockFzfClient{available: false}
 
-	app := New(tmuxMock, sessionMock, fzfMock, false, "test")
+	app := New(tmuxMock, fzfMock, sessionMock, false, "test")
 
 	// Run should return early without calling any session methods
 	app.Run("")
@@ -428,9 +428,9 @@ func TestApp_Run_TmuxUnavailable(t *testing.T) {
 func TestApp_Run_InsideTmux_NoArgs(t *testing.T) {
 	tmuxMock := &mockTmuxClient{available: true, insideTmux: true, currentSession: "my-session"}
 	sessionMock := &mockSessionFinder{listResult: []*session.Session{{Name: "other"}}}
-	fzfMock := &mockFzfRunner{available: false}
+	fzfMock := &mockFzfClient{available: false}
 
-	app := New(tmuxMock, sessionMock, fzfMock, false, "test")
+	app := New(tmuxMock, fzfMock, sessionMock, false, "test")
 	app.Run("")
 
 	if !sessionMock.listExcludingCalled {
@@ -444,9 +444,9 @@ func TestApp_Run_InsideTmux_NoArgs(t *testing.T) {
 func TestApp_Run_OutsideTmux_NoArgs(t *testing.T) {
 	tmuxMock := &mockTmuxClient{available: true}
 	sessionMock := &mockSessionFinder{listResult: []*session.Session{{Name: "session1"}}}
-	fzfMock := &mockFzfRunner{available: false}
+	fzfMock := &mockFzfClient{available: false}
 
-	app := New(tmuxMock, sessionMock, fzfMock, false, "test")
+	app := New(tmuxMock, fzfMock, sessionMock, false, "test")
 	app.Run("")
 
 	if !sessionMock.listExcludingCalled {
@@ -463,9 +463,9 @@ func TestApp_Run_InsideTmux_ExactMatch(t *testing.T) {
 		findResult: &session.Session{Name: "exact", Exists: true},
 		listResult: []*session.Session{{Name: "exact", Exists: true}},
 	}
-	fzfMock := &mockFzfRunner{available: false}
+	fzfMock := &mockFzfClient{available: false}
 
-	app := New(tmuxMock, sessionMock, fzfMock, false, "test")
+	app := New(tmuxMock, fzfMock, sessionMock, false, "test")
 	app.Run("exact")
 
 	if !sessionMock.findCalled {
@@ -482,9 +482,9 @@ func TestApp_Run_InsideTmux_ExactMatch(t *testing.T) {
 func TestApp_Run_BuiltinsUseFullList(t *testing.T) {
 	tmuxMock := &mockTmuxClient{available: true, insideTmux: true, currentSession: "my-session"}
 	sessionMock := &mockSessionFinder{listResult: []*session.Session{{Name: "my-session", Exists: true}}}
-	fzfMock := &mockFzfRunner{available: false}
+	fzfMock := &mockFzfClient{available: false}
 
-	app := New(tmuxMock, sessionMock, fzfMock, false, "test")
+	app := New(tmuxMock, fzfMock, sessionMock, false, "test")
 	app.Run("ls")
 
 	if !sessionMock.listCalled {
@@ -500,9 +500,9 @@ func TestApp_Run_InsideTmux_PartialMatch(t *testing.T) {
 	sessionMock := &mockSessionFinder{
 		listResult: []*session.Session{{Name: "other"}},
 	}
-	fzfMock := &mockFzfRunner{available: false}
+	fzfMock := &mockFzfClient{available: false}
 
-	app := New(tmuxMock, sessionMock, fzfMock, false, "test")
+	app := New(tmuxMock, fzfMock, sessionMock, false, "test")
 	app.Run("oth")
 
 	if !sessionMock.listExcludingCalled {
@@ -516,9 +516,9 @@ func TestApp_Run_InsideTmux_PartialMatch(t *testing.T) {
 func TestApp_Run_Version(t *testing.T) {
 	tmuxMock := &mockTmuxClient{available: false}
 	sessionMock := &mockSessionFinder{}
-	fzfMock := &mockFzfRunner{available: false}
+	fzfMock := &mockFzfClient{available: false}
 
-	app := New(tmuxMock, sessionMock, fzfMock, false, "1.2.3")
+	app := New(tmuxMock, fzfMock, sessionMock, false, "1.2.3")
 	got := app.Run("version")
 
 	if got != 0 {
@@ -587,8 +587,8 @@ func TestApp_Run_Status(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmuxMock := &mockTmuxClient{available: tt.tmuxAvail, path: tt.tmuxPath, version: tt.tmuxVer}
-			fzfMock := &mockFzfRunner{available: tt.fzfAvail, path: tt.fzfPath, version: tt.fzfVer}
-			app := New(tmuxMock, &mockSessionFinder{}, fzfMock, false, "test")
+			fzfMock := &mockFzfClient{available: tt.fzfAvail, path: tt.fzfPath, version: tt.fzfVer}
+			app := New(tmuxMock, fzfMock, &mockSessionFinder{}, false, "test")
 
 			oldStdout := os.Stdout
 			r, w, _ := os.Pipe()
@@ -617,9 +617,9 @@ func TestApp_Run_Status(t *testing.T) {
 func TestApp_Run_TmuxUnavailable_ReturnsOne(t *testing.T) {
 	tmuxMock := &mockTmuxClient{available: false}
 	sessionMock := &mockSessionFinder{}
-	fzfMock := &mockFzfRunner{available: false}
+	fzfMock := &mockFzfClient{available: false}
 
-	app := New(tmuxMock, sessionMock, fzfMock, false, "test")
+	app := New(tmuxMock, fzfMock, sessionMock, false, "test")
 	got := app.Run("")
 
 	if got != 1 {

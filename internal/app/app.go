@@ -24,7 +24,7 @@ type SessionFinder interface {
 	ListExcluding(onlyExisting bool, exclude string) []*session.Session
 }
 
-type FzfRunner interface {
+type FzfClient interface {
 	IsAvailable() bool
 	Path() string
 	Version() string
@@ -35,17 +35,17 @@ type App struct {
 	version       string
 	debug         bool
 	tmuxClient    TmuxClient
+	fzfClient     FzfClient
 	sessionFinder SessionFinder
-	fzfRunner     FzfRunner
 }
 
-func New(tc TmuxClient, ss SessionFinder, fr FzfRunner, debug bool, version string) *App {
+func New(tc TmuxClient, fc FzfClient, ss SessionFinder, debug bool, version string) *App {
 	return &App{
 		version:       version,
 		debug:         debug,
 		tmuxClient:    tc,
+		fzfClient:     fc,
 		sessionFinder: ss,
-		fzfRunner:     fr,
 	}
 }
 
@@ -98,10 +98,10 @@ func (a *App) runStatus() int {
 		exitCode = 1
 	}
 
-	if a.fzfRunner.IsAvailable() {
-		status := fmt.Sprintf("ok (%s) (optional)", a.fzfRunner.Path())
-		if v := a.fzfRunner.Version(); v != "" {
-			status = fmt.Sprintf("ok (%s, %s) (optional)", v, a.fzfRunner.Path())
+	if a.fzfClient.IsAvailable() {
+		status := fmt.Sprintf("ok (%s) (optional)", a.fzfClient.Path())
+		if v := a.fzfClient.Version(); v != "" {
+			status = fmt.Sprintf("ok (%s, %s) (optional)", v, a.fzfClient.Path())
 		}
 		printStatusLine("fzf", status)
 	} else {
@@ -178,13 +178,13 @@ func (a *App) selectSession(sessions []*session.Session, query string) (*session
 		return nil, nil
 	}
 
-	if a.fzfRunner.IsAvailable() {
+	if a.fzfClient.IsAvailable() {
 		items := make([]string, len(sessions))
 		for i, s := range sessions {
 			items[i] = formatSessionLine(s)
 		}
 
-		idx, ok, err := a.fzfRunner.Select(items, query)
+		idx, ok, err := a.fzfClient.Select(items, query)
 		if err != nil {
 			return nil, err
 		}
