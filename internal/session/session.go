@@ -13,6 +13,7 @@ type Session struct {
 	Dir          string
 	Exists       bool
 	LastAttached int64
+	Aliases      []string
 }
 
 func New(name string, dir string, exists bool, lastAttached int64) *Session {
@@ -116,6 +117,15 @@ func (f *Finder) List(onlyExisting bool) []*Session {
 	var sessions []*Session
 	sessions = f.repository.AllSessions()
 
+	for _, s := range sessions {
+		for _, pd := range f.preDefinedSessions {
+			if s.Name == pd.Name {
+				s.Aliases = pd.Aliases
+				break
+			}
+		}
+	}
+
 	slices.SortFunc(sessions, func(a, b *Session) int {
 		return cmp.Compare(b.LastAttached, a.LastAttached)
 	})
@@ -171,6 +181,7 @@ func (f *Finder) findPreDefinedSession(name string) (*Session, error) {
 			return nil, err
 		}
 		if existing != nil {
+			existing.Aliases = pd.Aliases
 			return existing, nil
 		}
 
@@ -183,7 +194,9 @@ func (f *Finder) findPreDefinedSession(name string) (*Session, error) {
 			continue
 		}
 
-		return New(pd.Name, dir, false, 0), nil
+		s := New(pd.Name, dir, false, 0)
+		s.Aliases = pd.Aliases
+		return s, nil
 	}
 	return nil, nil
 }
@@ -209,12 +222,9 @@ func (f *Finder) getAllPreDefinedSessions() []*Session {
 		if err != nil {
 			continue
 		}
-		sessions = append(sessions, New(pd.Name, dir, false, 0))
-		if len(pd.Aliases) > 0 {
-			for _, alias := range pd.Aliases {
-				sessions = append(sessions, New(alias, dir, false, 0))
-			}
-		}
+		s := New(pd.Name, dir, false, 0)
+		s.Aliases = pd.Aliases
+		sessions = append(sessions, s)
 	}
 	return sessions
 }

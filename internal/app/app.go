@@ -257,7 +257,11 @@ func (a *App) printSessionList(onlyExisting bool) {
 }
 
 func formatSessionLine(s *session.Session) string {
-	line := fmt.Sprintf("%s [%s]", s.Name, s.Dir)
+	name := s.Name
+	if len(s.Aliases) > 0 {
+		name += fmt.Sprintf(" (%s)", strings.Join(s.Aliases, ", "))
+	}
+	line := fmt.Sprintf("%s [%s]", name, s.Dir)
 	if s.Exists {
 		line += " *"
 	}
@@ -278,6 +282,13 @@ func filterSessions(sessions []*session.Session, query string) []*session.Sessio
 	for _, s := range sessions {
 		if strings.Contains(strings.ToLower(s.Name), query) {
 			matches = append(matches, s)
+			continue
+		}
+		for _, alias := range s.Aliases {
+			if strings.Contains(strings.ToLower(alias), query) {
+				matches = append(matches, s)
+				break
+			}
 		}
 	}
 	return matches

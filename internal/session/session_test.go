@@ -128,6 +128,61 @@ func TestFindPreDefinedSession(t *testing.T) {
 	}
 }
 
+func TestFindPreDefinedSession_AliasesPopulated(t *testing.T) {
+	tmp := t.TempDir()
+	validDir := filepath.Join(tmp, "valid")
+	os.Mkdir(validDir, 0755)
+
+	pre := []PreDefinedSession{
+		{Name: "myapp", Dir: validDir, Aliases: []string{"ma", "m"}},
+	}
+
+	finder := NewFinder(&mockTmuxRepository{}, pre, nil)
+
+	t.Run("new session has aliases", func(t *testing.T) {
+		sess, err := finder.findPreDefinedSession("myapp")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if sess == nil {
+			t.Fatal("expected session, got nil")
+		}
+		if len(sess.Aliases) != 2 || sess.Aliases[0] != "ma" || sess.Aliases[1] != "m" {
+			t.Errorf("expected aliases [ma m], got %v", sess.Aliases)
+		}
+	})
+
+	t.Run("alias lookup returns canonical with aliases", func(t *testing.T) {
+		sess, err := finder.findPreDefinedSession("ma")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if sess == nil {
+			t.Fatal("expected session, got nil")
+		}
+		if sess.Name != "myapp" {
+			t.Errorf("expected name myapp, got %s", sess.Name)
+		}
+		if len(sess.Aliases) != 2 || sess.Aliases[0] != "ma" || sess.Aliases[1] != "m" {
+			t.Errorf("expected aliases [ma m], got %v", sess.Aliases)
+		}
+	})
+
+	t.Run("existing session lookup has aliases", func(t *testing.T) {
+		finderWithExisting := NewFinder(&mockTmuxRepository{hasSession: true}, pre, nil)
+		sess, err := finderWithExisting.findPreDefinedSession("myapp")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if sess == nil {
+			t.Fatal("expected session, got nil")
+		}
+		if len(sess.Aliases) != 2 || sess.Aliases[0] != "ma" || sess.Aliases[1] != "m" {
+			t.Errorf("expected aliases [ma m], got %v", sess.Aliases)
+		}
+	})
+}
+
 func TestNameToMatch(t *testing.T) {
 	pds := PreDefinedSession{
 		Name:    "main",
@@ -307,12 +362,12 @@ func TestListExcluding(t *testing.T) {
 		{
 			name:      "empty exclude returns full list",
 			exclude:   "",
-			wantNames: []string{"session-a", "session-b", "session-c", "other", "pd", "pre", "predefined"},
+			wantNames: []string{"session-a", "session-b", "session-c", "other", "predefined"},
 		},
 		{
 			name:         "exclude non-predefined removes only that name",
 			exclude:      "session-b",
-			wantNames:    []string{"session-a", "session-c", "other", "pd", "pre", "predefined"},
+			wantNames:    []string{"session-a", "session-c", "other", "predefined"},
 			wantNotFound: []string{"session-b"},
 		},
 		{
@@ -330,7 +385,7 @@ func TestListExcluding(t *testing.T) {
 		{
 			name:         "only matching predefined session is excluded",
 			exclude:      "other",
-			wantNames:    []string{"session-a", "session-b", "session-c", "pd", "pre", "predefined"},
+			wantNames:    []string{"session-a", "session-b", "session-c", "predefined"},
 			wantNotFound: []string{"other"},
 		},
 	}
@@ -357,6 +412,52 @@ func TestListExcluding(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestList_PredefinedAliasesNotDuplicated(t *testing.T) {
+	tmp := t.TempDir()
+	predefinedDir := filepath.Join(tmp, "predefined")
+	os.Mkdir(predefinedDir, 0755)
+
+	pre := []PreDefinedSession{
+		{Name: "myapp", Dir: predefinedDir, Aliases: []string{"ma", "m"}},
+	}
+
+	finder := NewFinder(&mockTmuxRepository{}, pre, nil)
+	got := finder.List(false)
+
+	if len(got) != 1 {
+		t.Fatalf("expected 1 session, got %d", len(got))
+	}
+	if got[0].Name != "myapp" {
+		t.Errorf("expected name myapp, got %s", got[0].Name)
+	}
+	if len(got[0].Aliases) != 2 || got[0].Aliases[0] != "ma" || got[0].Aliases[1] != "m" {
+		t.Errorf("expected aliases [ma m], got %v", got[0].Aliases)
+	}
+}
+
+func TestList_ExistingPredefinedSessionRetainsAliases(t *testing.T) {
+	existing := []*Session{
+		{Name: "myapp", Dir: "/tmp/myapp", Exists: true, LastAttached: 1000},
+	}
+
+	pre := []PreDefinedSession{
+		{Name: "myapp", Dir: "/tmp/myapp", Aliases: []string{"ma", "m"}},
+	}
+
+	finder := NewFinder(&mockTmuxRepository{allSessions: existing}, pre, nil)
+	got := finder.List(true)
+
+	if len(got) != 1 {
+		t.Fatalf("expected 1 session, got %d", len(got))
+	}
+	if got[0].Name != "myapp" {
+		t.Errorf("expected name myapp, got %s", got[0].Name)
+	}
+	if len(got[0].Aliases) != 2 || got[0].Aliases[0] != "ma" || got[0].Aliases[1] != "m" {
+		t.Errorf("expected aliases [ma m], got %v", got[0].Aliases)
 	}
 }
 

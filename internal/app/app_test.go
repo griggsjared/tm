@@ -156,6 +156,27 @@ func TestFilterSessions(t *testing.T) {
 			wantLen:   0,
 			wantNames: []string{},
 		},
+		{
+			name:      "match by alias",
+			sessions:  []*session.Session{{Name: "myapp", Aliases: []string{"ma"}}, {Name: "other"}},
+			query:     "ma",
+			wantLen:   1,
+			wantNames: []string{"myapp"},
+		},
+		{
+			name:      "multiple aliases match same session",
+			sessions:  []*session.Session{{Name: "myapp", Aliases: []string{"ma", "m"}}, {Name: "other"}},
+			query:     "m",
+			wantLen:   1,
+			wantNames: []string{"myapp"},
+		},
+		{
+			name:      "name takes precedence over alias",
+			sessions:  []*session.Session{{Name: "myapp", Aliases: []string{"ma"}}, {Name: "ma"}},
+			query:     "ma",
+			wantLen:   2,
+			wantNames: []string{"myapp", "ma"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -631,6 +652,21 @@ func TestFormatSessionLine(t *testing.T) {
 			name:     "no directory, existing",
 			session:  &session.Session{Name: "myapp", Dir: "", Exists: true},
 			expected: "myapp [] *",
+		},
+		{
+			name:     "with aliases",
+			session:  &session.Session{Name: "myapp", Dir: "/home/user/myapp", Aliases: []string{"ma"}},
+			expected: "myapp (ma) [/home/user/myapp]",
+		},
+		{
+			name:     "with multiple aliases",
+			session:  &session.Session{Name: "myapp", Dir: "/home/user/myapp", Aliases: []string{"ma", "m"}},
+			expected: "myapp (ma, m) [/home/user/myapp]",
+		},
+		{
+			name:     "with aliases and existing",
+			session:  &session.Session{Name: "myapp", Dir: "/home/user/myapp", Exists: true, Aliases: []string{"ma"}},
+			expected: "myapp (ma) [/home/user/myapp] *",
 		},
 	}
 
