@@ -84,6 +84,32 @@ func TestRunner_Path(t *testing.T) {
 	}
 }
 
+func TestRunner_Version(t *testing.T) {
+	tests := []struct {
+		name       string
+		setupMock  func() *Runner
+		wantResult string
+	}{
+		{
+			name: "not available returns empty string",
+			setupMock: func() *Runner {
+				return &Runner{path: ""}
+			},
+			wantResult: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			runner := tt.setupMock()
+			got := runner.Version()
+			if got != tt.wantResult {
+				t.Errorf("Version() = %q, want %q", got, tt.wantResult)
+			}
+		})
+	}
+}
+
 func TestRunner_Select_NotAvailable(t *testing.T) {
 	runner := &Runner{path: ""}
 	_, _, err := runner.Select([]string{"item"}, "query")

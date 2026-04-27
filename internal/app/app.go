@@ -11,6 +11,7 @@ type TmuxClient interface {
 	IsAvailable() bool
 	InsideTmux() bool
 	Path() string
+	Version() string
 	NewSession(s *session.Session, detached bool) error
 	AttachSession(s *session.Session) error
 	SwitchSession(s *session.Session) error
@@ -26,6 +27,7 @@ type SessionFinder interface {
 type FzfRunner interface {
 	IsAvailable() bool
 	Path() string
+	Version() string
 	Select(items []string, query string) (int, bool, error)
 }
 
@@ -86,14 +88,22 @@ func (a *App) runStatus() int {
 	printStatusLine("tm", fmt.Sprintf("ok (%s)", a.version))
 
 	if a.tmuxClient.IsAvailable() {
-		printStatusLine("tmux", fmt.Sprintf("ok (%s)", a.tmuxClient.Path()))
+		status := fmt.Sprintf("ok (%s)", a.tmuxClient.Path())
+		if v := a.tmuxClient.Version(); v != "" {
+			status = fmt.Sprintf("ok (%s, %s)", v, a.tmuxClient.Path())
+		}
+		printStatusLine("tmux", status)
 	} else {
 		printStatusLine("tmux", "missing")
 		exitCode = 1
 	}
 
 	if a.fzfRunner.IsAvailable() {
-		printStatusLine("fzf", fmt.Sprintf("ok (%s) (optional)", a.fzfRunner.Path()))
+		status := fmt.Sprintf("ok (%s) (optional)", a.fzfRunner.Path())
+		if v := a.fzfRunner.Version(); v != "" {
+			status = fmt.Sprintf("ok (%s, %s) (optional)", v, a.fzfRunner.Path())
+		}
+		printStatusLine("fzf", status)
 	} else {
 		printStatusLine("fzf", "missing (optional)")
 	}

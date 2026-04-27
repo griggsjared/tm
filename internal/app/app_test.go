@@ -2,6 +2,9 @@ package app
 
 import (
 	"errors"
+	"io"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/griggsjared/tm/internal/session"
@@ -11,6 +14,7 @@ type mockTmuxClient struct {
 	available           bool
 	insideTmux          bool
 	path                string
+	version             string
 	currentSession      string
 	newSessionCalled    bool
 	newSessionDetached  bool
@@ -32,6 +36,10 @@ func (m *mockTmuxClient) InsideTmux() bool {
 
 func (m *mockTmuxClient) Path() string {
 	return m.path
+}
+
+func (m *mockTmuxClient) Version() string {
+	return m.version
 }
 
 func (m *mockTmuxClient) CurrentSession() string {
@@ -86,6 +94,7 @@ func (m *mockSessionFinder) ListExcluding(onlyExisting bool, exclude string) []*
 type mockFzfRunner struct {
 	available     bool
 	path          string
+	version       string
 	selectResult  int
 	selectOk      bool
 	selectError   error
@@ -99,6 +108,10 @@ func (m *mockFzfRunner) IsAvailable() bool {
 
 func (m *mockFzfRunner) Path() string {
 	return m.path
+}
+
+func (m *mockFzfRunner) Version() string {
+	return m.version
 }
 
 func (m *mockFzfRunner) Select(items []string, query string) (int, bool, error) {
@@ -494,20 +507,35 @@ func TestApp_Run_Version(t *testing.T) {
 
 func TestApp_Run_Status(t *testing.T) {
 	tests := []struct {
-		name      string
-		tmuxAvail bool
-		tmuxPath  string
-		fzfAvail  bool
-		fzfPath   string
-		wantExit  int
+		name       string
+		tmuxAvail  bool
+		tmuxPath   string
+		tmuxVer    string
+		fzfAvail   bool
+		fzfPath    string
+		fzfVer     string
+		wantExit   int
+		wantOutput []string
 	}{
 		{
-			name:      "both available",
-			tmuxAvail: true,
-			tmuxPath:  "/usr/bin/tmux",
-			fzfAvail:  true,
-			fzfPath:   "/usr/bin/fzf",
-			wantExit:  0,
+			name:       "both available with versions",
+			tmuxAvail:  true,
+			tmuxPath:   "/usr/bin/tmux",
+			tmuxVer:    "3.4",
+			fzfAvail:   true,
+			fzfPath:    "/usr/bin/fzf",
+			fzfVer:     "0.46.1",
+			wantExit:   0,
+			wantOutput: []string{"ok (3.4, /usr/bin/tmux)", "ok (0.46.1, /usr/bin/fzf) (optional)"},
+		},
+		{
+			name:       "both available without versions",
+			tmuxAvail:  true,
+			tmuxPath:   "/usr/bin/tmux",
+			fzfAvail:   true,
+			fzfPath:    "/usr/bin/fzf",
+			wantExit:   0,
+			wantOutput: []string{"ok (/usr/bin/tmux)", "ok (/usr/bin/fzf) (optional)"},
 		},
 		{
 			name:      "tmux available, fzf missing",
@@ -537,13 +565,29 @@ func TestApp_Run_Status(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmuxMock := &mockTmuxClient{available: tt.tmuxAvail, path: tt.tmuxPath}
-			fzfMock := &mockFzfRunner{available: tt.fzfAvail, path: tt.fzfPath}
+			tmuxMock := &mockTmuxClient{available: tt.tmuxAvail, path: tt.tmuxPath, version: tt.tmuxVer}
+			fzfMock := &mockFzfRunner{available: tt.fzfAvail, path: tt.fzfPath, version: tt.fzfVer}
 			app := New(tmuxMock, &mockSessionFinder{}, fzfMock, false, "test")
 
+			oldStdout := os.Stdout
+			r, w, _ := os.Pipe()
+			os.Stdout = w
+
 			got := app.Run("status")
+
+			w.Close()
+			os.Stdout = oldStdout
+			out, _ := io.ReadAll(r)
+			output := string(out)
+
 			if got != tt.wantExit {
 				t.Errorf("Run(\"status\") = %v, want %v", got, tt.wantExit)
+			}
+
+			for _, want := range tt.wantOutput {
+				if !strings.Contains(output, want) {
+					t.Errorf("expected output to contain %q, got:\n%s", want, output)
+				}
 			}
 		})
 	}

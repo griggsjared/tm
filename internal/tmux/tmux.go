@@ -55,6 +55,18 @@ func (c *Client) Path() string {
 	return c.path
 }
 
+func (c *Client) Version() string {
+	output, err := c.runner.Output(c.path, []string{"-V"})
+	if err != nil {
+		return ""
+	}
+	parts := strings.Fields(string(output))
+	if len(parts) < 2 {
+		return ""
+	}
+	return parts[1]
+}
+
 func (c *Client) HasSession(name string) bool {
 	if _, err := c.runner.Output(c.path, []string{"has-session", "-t", "=" + name}); err != nil {
 		return false

@@ -387,6 +387,75 @@ func TestClient_CurrentSession(t *testing.T) {
 	}
 }
 
+func TestClient_Version(t *testing.T) {
+	tests := []struct {
+		name       string
+		crOutput   []byte
+		crError    error
+		wantResult string
+		wantArgs   []string
+		wantPath   string
+	}{
+		{
+			name:       "successful version parse",
+			crOutput:   []byte("tmux 3.4\n"),
+			wantResult: "3.4",
+			wantArgs:   []string{"-V"},
+			wantPath:   "/usr/bin/tmux",
+		},
+		{
+			name:       "version with prefix stripped",
+			crOutput:   []byte("tmux next-3.5\n"),
+			wantResult: "next-3.5",
+			wantArgs:   []string{"-V"},
+			wantPath:   "/usr/bin/tmux",
+		},
+		{
+			name:       "error returns empty string",
+			crError:    errors.New("tmux error"),
+			wantResult: "",
+			wantArgs:   []string{"-V"},
+			wantPath:   "/usr/bin/tmux",
+		},
+		{
+			name:       "empty output returns empty string",
+			crOutput:   []byte(""),
+			wantResult: "",
+			wantArgs:   []string{"-V"},
+			wantPath:   "/usr/bin/tmux",
+		},
+		{
+			name:       "single word output returns empty string",
+			crOutput:   []byte("tmux\n"),
+			wantResult: "",
+			wantArgs:   []string{"-V"},
+			wantPath:   "/usr/bin/tmux",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cr := &TestRunner{output: tt.crOutput, error: tt.crError}
+			client := NewClient(cr, "/usr/bin/tmux")
+
+			got := client.Version()
+			if got != tt.wantResult {
+				t.Fatalf("Version() = %q, want %q", got, tt.wantResult)
+			}
+
+			if cr.providedPath != tt.wantPath {
+				t.Fatalf("Expected path %s, got %s", tt.wantPath, cr.providedPath)
+			}
+
+			for i, wantArg := range tt.wantArgs {
+				if len(cr.providedArgs) <= i || cr.providedArgs[i] != wantArg {
+					t.Fatalf("Expected arg[%d] %s, got %v", i, wantArg, cr.providedArgs)
+				}
+			}
+		})
+	}
+}
+
 func TestClient_InsideTmux(t *testing.T) {
 	tests := []struct {
 		name     string

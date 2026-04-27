@@ -34,6 +34,18 @@ func (r *Runner) Path() string {
 	return r.path
 }
 
+func (r *Runner) Version() string {
+	output, err := exec.Command(r.path, "--version").Output()
+	if err != nil {
+		return ""
+	}
+	parts := strings.Fields(string(output))
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(parts[0])
+}
+
 func (r *Runner) Select(items []string, query string) (int, bool, error) {
 	if !r.IsAvailable() {
 		return 0, false, fmt.Errorf("fzf is not available")
