@@ -4,24 +4,20 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/griggsjared/tm/internal/session"
 )
 
 func TestNew(t *testing.T) {
-	pds := []struct {
-		Dir     string
-		Name    string
-		Aliases []string
-	}{
+	pds := []session.PreDefinedSession{
 		{Dir: "~/test", Name: "test", Aliases: []string{"t"}},
 	}
 
-	sd := []struct {
-		Dir string
-	}{
+	sd := []session.SmartDirectory{
 		{Dir: "~/projects"},
 	}
 
-	cfg := New(true, "/usr/bin/tmux", nil, nil)
+	cfg := New(true, "/usr/bin/tmux", "/usr/bin/fzf", pds, sd)
 
 	if !cfg.Debug {
 		t.Error("expected Debug to be true")
@@ -29,12 +25,15 @@ func TestNew(t *testing.T) {
 	if cfg.TmuxPath != "/usr/bin/tmux" {
 		t.Errorf("expected TmuxPath /usr/bin/tmux, got %s", cfg.TmuxPath)
 	}
-	if cfg.FzfPath != "" {
-		t.Errorf("expected FzfPath empty, got %s", cfg.FzfPath)
+	if cfg.FzfPath != "/usr/bin/fzf" {
+		t.Errorf("expected FzfPath /usr/bin/fzf, got %s", cfg.FzfPath)
 	}
-
-	_ = pds
-	_ = sd
+	if len(cfg.PreDefinedSessions) != 1 || cfg.PreDefinedSessions[0].Name != "test" {
+		t.Errorf("expected PreDefinedSessions, got %v", cfg.PreDefinedSessions)
+	}
+	if len(cfg.SmartDirectories) != 1 || cfg.SmartDirectories[0].Dir != "~/projects" {
+		t.Errorf("expected SmartDirectories, got %v", cfg.SmartDirectories)
+	}
 }
 
 func TestDefaultConfigPath(t *testing.T) {

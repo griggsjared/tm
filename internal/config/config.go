@@ -22,18 +22,17 @@ type Config struct {
 	SmartDirectories   []session.SmartDirectory
 }
 
-func New(debug bool, tmuxPath string, preDefinedSessions []session.PreDefinedSession, smartDirectories []session.SmartDirectory) *Config {
+func New(debug bool, tmuxPath, fzfPath string, preDefinedSessions []session.PreDefinedSession, smartDirectories []session.SmartDirectory) *Config {
 	return &Config{
 		Debug:              debug,
 		TmuxPath:           tmuxPath,
+		FzfPath:            fzfPath,
 		PreDefinedSessions: preDefinedSessions,
 		SmartDirectories:   smartDirectories,
 	}
 }
 
 func Load() (*Config, error) {
-	config := New(false, "", nil, nil)
-
 	envConfig, err := loadConfigFromEnv()
 	if err != nil {
 		return nil, err
@@ -54,27 +53,29 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	config.PreDefinedSessions = make([]session.PreDefinedSession, len(fileConfig.PreDefinedSessions))
+	preDefinedSessions := make([]session.PreDefinedSession, len(fileConfig.PreDefinedSessions))
 	for i, pd := range fileConfig.PreDefinedSessions {
-		config.PreDefinedSessions[i] = session.PreDefinedSession{
+		preDefinedSessions[i] = session.PreDefinedSession{
 			Dir:     pd.Dir,
 			Name:    pd.Name,
 			Aliases: pd.Aliases,
 		}
 	}
 
-	config.SmartDirectories = make([]session.SmartDirectory, len(fileConfig.SmartDirectories))
+	smartDirectories := make([]session.SmartDirectory, len(fileConfig.SmartDirectories))
 	for i, sd := range fileConfig.SmartDirectories {
-		config.SmartDirectories[i] = session.SmartDirectory{
+		smartDirectories[i] = session.SmartDirectory{
 			Dir: sd,
 		}
 	}
 
-	config.Debug = envConfig.Debug
-	config.TmuxPath = resolveBinaryPath(envConfig.TmuxPath, "tmux")
-	config.FzfPath = resolveBinaryPath(envConfig.FzfPath, "fzf")
-
-	return config, nil
+	return New(
+		envConfig.Debug,
+		resolveBinaryPath(envConfig.TmuxPath, "tmux"),
+		resolveBinaryPath(envConfig.FzfPath, "fzf"),
+		preDefinedSessions,
+		smartDirectories,
+	), nil
 }
 
 func resolveBinaryPath(envPath, binaryName string) string {
