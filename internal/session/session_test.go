@@ -556,9 +556,19 @@ func TestDirExists(t *testing.T) {
 	if !exists {
 		t.Error("expected temp dir to exist")
 	}
+
 	exists = dirExists("/nonexistent/path")
 	if exists {
 		t.Error("expected nonexistent path to not exist")
+	}
+
+	file := filepath.Join(tmp, "file.txt")
+	if err := os.WriteFile(file, []byte("test"), 0644); err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	exists = dirExists(file)
+	if exists {
+		t.Error("expected file to not count as dir")
 	}
 }
 

@@ -266,8 +266,8 @@ func nameToMatch(pds PreDefinedSession) []string {
 }
 
 func dirExists(path string) bool {
-	_, err := os.Stat(path)
-	return !os.IsNotExist(err)
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 func expandHomeDir(path string) (string, error) {
