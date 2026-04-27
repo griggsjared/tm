@@ -92,7 +92,6 @@ tm/
 ├── internal/
 │   ├── app/             # Application orchestration
 │   ├── config/          # Configuration loading
-│   ├── status/          # Dependency health checks
 │   ├── fzf/             # Fuzzy finding integration
 │   ├── session/         # Session domain (Finder)
 │   └── tmux/            # Tmux client
@@ -100,11 +99,10 @@ tm/
 
 ### Architecture
 
-- **app**: Orchestrates the flow - handles fuzzy selection, filtering, and tmux operations
+- **app**: Orchestrates the flow - handles fuzzy selection, filtering, tmux operations, and dependency status
 - **session.Finder**: Discovers sessions from multiple sources (tmux, pre-defined, smart directories)
 - **tmux.Client**: Low-level tmux operations (create, attach, check existence)
 - **fzf**: Fuzzy finding integration (optional)
-- **status**: Checks availability and paths of tm dependencies (tmux, fzf)
 
 ### Building from Source
 
