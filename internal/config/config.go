@@ -151,9 +151,9 @@ func loadConfigFromConfigFile(path string, dPath string) (*fileConfig, error) {
 }
 
 func defaultConfigPath() (string, error) {
-	homeDir := os.Getenv("HOME")
-	if homeDir == "" {
-		return "", fmt.Errorf("could not find home directory")
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("unable to determine home directory: %w", err)
 	}
 	return filepath.Join(homeDir, ".config", "tm", "config.yaml"), nil
 }
