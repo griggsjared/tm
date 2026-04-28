@@ -522,31 +522,24 @@ func TestList_MixedSessionsOrdering(t *testing.T) {
 }
 
 func TestList_PredefinedSmartNameCollision(t *testing.T) {
-	preTmp := t.TempDir()
-	predefinedDir := filepath.Join(preTmp, "collision")
-	os.Mkdir(predefinedDir, 0755)
-
-	smartTmp := t.TempDir()
-	os.Mkdir(filepath.Join(smartTmp, "collision"), 0755)
+	tmp := t.TempDir()
+	projectDir := filepath.Join(tmp, "collision")
+	os.Mkdir(projectDir, 0755)
 
 	pre := []PreDefinedSession{
-		{Name: "collision", Dir: predefinedDir},
+		{Name: "collision", Dir: projectDir},
 	}
 
-	smart := []SmartDirectory{{Dir: smartTmp}}
+	smart := []SmartDirectory{{Dir: tmp}}
 
 	finder := NewFinder(&mockTmuxRepository{}, pre, smart)
 	got := finder.List(false)
 
-	// Both predefined and smart sessions with the same name appear since
-	// deduplication only checks against existing tmux sessions.
-	if len(got) != 2 {
-		t.Fatalf("expected 2 sessions, got %d", len(got))
+	if len(got) != 1 {
+		t.Fatalf("expected 1 session (predefined wins), got %d", len(got))
 	}
-	for _, s := range got {
-		if s.Name != "collision" {
-			t.Errorf("expected name collision, got %s", s.Name)
-		}
+	if got[0].Dir != projectDir {
+		t.Errorf("expected predefined dir to win, got %s", got[0].Dir)
 	}
 }
 

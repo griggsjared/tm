@@ -131,24 +131,28 @@ func (f *Finder) List(onlyExisting bool) []*Session {
 	})
 
 	if !onlyExisting {
+		// We need to gather the non-existing session seperately so we can sort them before appanding to the existing sessions
 		var nonExisting []*Session
 
 		for _, pd := range f.getAllPreDefinedSessions() {
-			found := slices.ContainsFunc(sessions, func(s *Session) bool {
+			foundInExisting := slices.ContainsFunc(sessions, func(s *Session) bool {
 				return s.Name == pd.Name
 			})
 
-			if !found {
+			if !foundInExisting {
 				nonExisting = append(nonExisting, pd)
 			}
 		}
 
 		for _, sd := range f.getAllSmartSessionDirectorySessions() {
-			found := slices.ContainsFunc(sessions, func(s *Session) bool {
+			foundInTmux := slices.ContainsFunc(sessions, func(s *Session) bool {
 				return s.Name == sd.Name
 			})
+			foundInNonExisting := slices.ContainsFunc(nonExisting, func(s *Session) bool {
+				return s.Dir == sd.Dir
+			})
 
-			if !found {
+			if !foundInTmux && !foundInNonExisting {
 				nonExisting = append(nonExisting, sd)
 			}
 		}
