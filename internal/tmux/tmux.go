@@ -118,7 +118,7 @@ func (c *Client) AllSessions() []*session.Session {
 
 		lastAttached, err := strconv.ParseInt(parts[2], 10, 64)
 		if err != nil {
-			continue
+			lastAttached = 0
 		}
 		sessions = append(sessions, session.New(parts[0], parts[1], true, lastAttached))
 	}

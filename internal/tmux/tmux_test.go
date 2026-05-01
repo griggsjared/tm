@@ -524,6 +524,24 @@ func TestClient_AllSessions(t *testing.T) {
 			},
 			crOutput: []byte("session1\t/path/to/session1\t0\n"),
 		},
+		{
+			name:     "session with empty last_attached is kept with zero",
+			wantArgs: []string{"list-sessions", "-F", listSessionsFormat},
+			wantPath: "/usr/bin/tmux",
+			wantOutput: []*session.Session{
+				{Name: "session1", Dir: "/path/to/session1", Exists: true, LastAttached: 0},
+			},
+			crOutput: []byte("session1\t/path/to/session1\t\n"),
+		},
+		{
+			name:     "session with invalid last_attached is kept with zero",
+			wantArgs: []string{"list-sessions", "-F", listSessionsFormat},
+			wantPath: "/usr/bin/tmux",
+			wantOutput: []*session.Session{
+				{Name: "session1", Dir: "/path/to/session1", Exists: true, LastAttached: 0},
+			},
+			crOutput: []byte("session1\t/path/to/session1\tnot-a-number\n"),
+		},
 	}
 
 	for _, tt := range tests {
