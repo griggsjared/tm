@@ -67,11 +67,17 @@ func (a *App) Run(query string) int {
 	currentSession := a.currentSession()
 
 	if query == "" {
-		a.runInteractive(currentSession)
+		if err := a.runInteractive(currentSession); err != nil {
+			fmt.Println(err)
+			return 1
+		}
 		return 0
 	}
 
-	a.runWithQuery(query, currentSession)
+	if err := a.runWithQuery(query, currentSession); err != nil {
+		fmt.Println(err)
+		return 1
+	}
 	return 0
 }
 
@@ -111,36 +117,32 @@ func (a *App) runStatus() int {
 	return exitCode
 }
 
-func (a *App) runInteractive(currentSession string) {
+func (a *App) runInteractive(currentSession string) error {
 	sessions := a.sessionFinder.ListExcluding(false, currentSession)
 	selected, err := a.selectSession(sessions, "")
 	if err != nil {
-		fmt.Println("Error:", err)
-		return
+		return err
 	}
 	if selected != nil {
 		if err := a.attachToSession(selected); err != nil {
-			fmt.Println(err)
+			return err
 		}
 	}
+	return nil
 }
 
-func (a *App) runWithQuery(query, currentSession string) {
+func (a *App) runWithQuery(query, currentSession string) error {
 	if a.handleBuiltinCommand(query) {
-		return
+		return nil
 	}
 
 	// Try exact match first
 	session, err := a.sessionFinder.Find(query)
 	if err != nil {
-		fmt.Println("Error finding session:", err)
-		return
+		return fmt.Errorf("error finding session: %w", err)
 	}
 	if session != nil {
-		if err := a.attachToSession(session); err != nil {
-			fmt.Println(err)
-		}
-		return
+		return a.attachToSession(session)
 	}
 
 	// No exact match - filter by partial
@@ -149,23 +151,19 @@ func (a *App) runWithQuery(query, currentSession string) {
 
 	if len(matches) == 1 {
 		// Single partial match - attach directly
-		if err := a.attachToSession(matches[0]); err != nil {
-			fmt.Println(err)
-		}
-		return
+		return a.attachToSession(matches[0])
 	}
 
 	// 0 or >1 matches - need selection
 	selected, err := a.selectSession(allSessions, query)
 	if err != nil {
-		fmt.Println("Error:", err)
-		return
+		return err
 	}
 	if selected != nil {
-		if err := a.attachToSession(selected); err != nil {
-			fmt.Println(err)
-		}
+		return a.attachToSession(selected)
 	}
+
+	return nil
 }
 
 func (a *App) selectSession(sessions []*session.Session, query string) (*session.Session, error) {

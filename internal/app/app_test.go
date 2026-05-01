@@ -627,6 +627,122 @@ func TestApp_Run_TmuxUnavailable_ReturnsOne(t *testing.T) {
 	}
 }
 
+func TestApp_Run_ErrorPaths(t *testing.T) {
+	tests := []struct {
+		name             string
+		query            string
+		insideTmux       bool
+		findResult       *session.Session
+		findError        error
+		listResult       []*session.Session
+		fzfAvailable     bool
+		fzfError         error
+		fzfResult        int
+		fzfOk            bool
+		attachError      error
+		wantExit         int
+		wantSwitchCalled bool
+	}{
+		{
+			name:         "interactive: attach error returns 1",
+			query:        "",
+			listResult:   []*session.Session{{Name: "session1", Exists: true}},
+			fzfAvailable: true,
+			fzfResult:    0,
+			fzfOk:        true,
+			attachError:  errors.New("attach failed"),
+			wantExit:     1,
+		},
+		{
+			name:      "query: find error returns 1",
+			query:     "foo",
+			findError: errors.New("find failed"),
+			wantExit:  1,
+		},
+		{
+			name:             "query: exact match attach error returns 1",
+			query:            "exact",
+			findResult:       &session.Session{Name: "exact", Exists: true},
+			attachError:      errors.New("attach failed"),
+			wantExit:         1,
+			wantSwitchCalled: true,
+		},
+		{
+			name:             "query: exact match success returns 0",
+			query:            "exact",
+			findResult:       &session.Session{Name: "exact", Exists: true},
+			wantExit:         0,
+			wantSwitchCalled: true,
+		},
+		{
+			name:       "query: single partial match success returns 0",
+			query:      "oth",
+			listResult: []*session.Session{{Name: "other", Exists: true}},
+			wantExit:   0,
+		},
+		{
+			name:         "query: selectSession success returns 0",
+			query:        "te",
+			listResult:   []*session.Session{{Name: "test1"}, {Name: "test2"}},
+			fzfAvailable: true,
+			fzfResult:    0,
+			fzfOk:        true,
+			wantExit:     0,
+		},
+		{
+			name:         "query: selectSession error returns 1",
+			query:        "te",
+			listResult:   []*session.Session{{Name: "test1"}, {Name: "test2"}},
+			fzfAvailable: true,
+			fzfError:     errors.New("fzf failed"),
+			wantExit:     1,
+		},
+		{
+			name:         "query: attach after selectSession error returns 1",
+			query:        "te",
+			listResult:   []*session.Session{{Name: "test1"}, {Name: "test2"}},
+			fzfAvailable: true,
+			fzfResult:    0,
+			fzfOk:        true,
+			attachError:  errors.New("attach failed"),
+			wantExit:     1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmuxMock := &mockTmuxClient{
+				available:          true,
+				insideTmux:         true,
+				currentSession:     "current",
+				attachSessionError: tt.attachError,
+				switchSessionError: tt.attachError,
+			}
+			sessionMock := &mockSessionFinder{
+				findResult: tt.findResult,
+				findError:  tt.findError,
+				listResult: tt.listResult,
+			}
+			fzfMock := &mockFzfClient{
+				available:    tt.fzfAvailable,
+				selectError:  tt.fzfError,
+				selectResult: tt.fzfResult,
+				selectOk:     tt.fzfOk,
+			}
+
+			app := New(tmuxMock, fzfMock, sessionMock, false, "test")
+			got := app.Run(tt.query)
+
+			if got != tt.wantExit {
+				t.Errorf("Run(%q) = %d, want %d", tt.query, got, tt.wantExit)
+			}
+			if tt.wantSwitchCalled && !tmuxMock.switchSessionCalled {
+				t.Error("SwitchSession should be called")
+			}
+		})
+	}
+}
+
 func TestFormatSessionLine(t *testing.T) {
 	tests := []struct {
 		name     string
