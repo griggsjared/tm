@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/griggsjared/tm/internal/session"
@@ -60,7 +61,7 @@ func (a *App) Run(query string) int {
 	}
 
 	if !a.tmuxClient.IsAvailable() {
-		fmt.Println("Error: tmux not found. Install tmux or set TM_TMUX_PATH.")
+		fmt.Fprintln(os.Stderr, "Error: tmux not found. Install tmux or set TM_TMUX_PATH.")
 		return 1
 	}
 
@@ -68,14 +69,14 @@ func (a *App) Run(query string) int {
 
 	if query == "" {
 		if err := a.runInteractive(currentSession); err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(os.Stderr, "Error:", err)
 			return 1
 		}
 		return 0
 	}
 
 	if err := a.runWithQuery(query, currentSession); err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, "Error:", err)
 		return 1
 	}
 	return 0

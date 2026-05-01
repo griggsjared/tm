@@ -743,6 +743,71 @@ func TestApp_Run_ErrorPaths(t *testing.T) {
 	}
 }
 
+func TestApp_Run_ErrorsGoToStderr(t *testing.T) {
+	tests := []struct {
+		name       string
+		query      string
+		tmuxAvail  bool
+		findError  error
+		listResult []*session.Session
+		fzfError   error
+		wantErr    string
+	}{
+		{
+			name:      "tmux unavailable",
+			query:     "",
+			tmuxAvail: false,
+			wantErr:   "tmux not found",
+		},
+		{
+			name:       "interactive: selectSession error",
+			query:      "",
+			tmuxAvail:  true,
+			listResult: []*session.Session{{Name: "s1"}},
+			fzfError:   errors.New("fzf failed"),
+			wantErr:    "fzf failed",
+		},
+		{
+			name:      "query: find error",
+			query:     "foo",
+			tmuxAvail: true,
+			findError: errors.New("find failed"),
+			wantErr:   "find failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmuxMock := &mockTmuxClient{available: tt.tmuxAvail}
+			sessionMock := &mockSessionFinder{
+				findError:  tt.findError,
+				listResult: tt.listResult,
+			}
+			fzfMock := &mockFzfClient{
+				available:   tt.listResult != nil && len(tt.listResult) > 0,
+				selectError: tt.fzfError,
+			}
+
+			app := New(tmuxMock, fzfMock, sessionMock, false, "test")
+
+			oldStderr := os.Stderr
+			r, w, _ := os.Pipe()
+			os.Stderr = w
+
+			app.Run(tt.query)
+
+			w.Close()
+			os.Stderr = oldStderr
+			out, _ := io.ReadAll(r)
+			output := string(out)
+
+			if !strings.Contains(output, tt.wantErr) {
+				t.Errorf("expected stderr to contain %q, got:\n%s", tt.wantErr, output)
+			}
+		})
+	}
+}
+
 func TestFormatSessionLine(t *testing.T) {
 	tests := []struct {
 		name     string
