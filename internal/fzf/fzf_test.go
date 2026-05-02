@@ -196,7 +196,7 @@ func TestClient_Select(t *testing.T) {
 			trOutput:       []byte("2\tbeta\n"),
 			wantIdx:        1,
 			wantOk:         true,
-			wantArgs:       []string{"--select-1", "--exit-0", "--with-nth=2..", "--query=bet"},
+			wantArgs:       []string{"--exit-0", "--with-nth=2..", "--query=bet"},
 			wantPath:       "/usr/local/bin/fzf",
 			wantStdinLines: []string{"1\talpha", "2\tbeta", "3\tgamma"},
 		},
@@ -210,7 +210,7 @@ func TestClient_Select(t *testing.T) {
 			wantIdx:    0,
 			wantOk:     false,
 			wantErr:    false,
-			wantArgs:   []string{"--select-1", "--exit-0", "--with-nth=2..", "--query=test"},
+			wantArgs:   []string{"--exit-0", "--with-nth=2..", "--query=test"},
 			wantPath:   "/usr/local/bin/fzf",
 		},
 		{
@@ -223,7 +223,7 @@ func TestClient_Select(t *testing.T) {
 			wantIdx:    0,
 			wantOk:     false,
 			wantErr:    false,
-			wantArgs:   []string{"--select-1", "--exit-0", "--with-nth=2..", "--query=test"},
+			wantArgs:   []string{"--exit-0", "--with-nth=2..", "--query=test"},
 			wantPath:   "/usr/local/bin/fzf",
 		},
 		{
@@ -235,7 +235,7 @@ func TestClient_Select(t *testing.T) {
 			trError:     errors.New("exit status 2"),
 			wantErr:     true,
 			errContains: "fzf error",
-			wantArgs:    []string{"--select-1", "--exit-0", "--with-nth=2..", "--query=test"},
+			wantArgs:    []string{"--exit-0", "--with-nth=2..", "--query=test"},
 			wantPath:    "/usr/local/bin/fzf",
 		},
 		{
@@ -247,7 +247,7 @@ func TestClient_Select(t *testing.T) {
 			wantIdx:  0,
 			wantOk:   false,
 			wantErr:  false,
-			wantArgs: []string{"--select-1", "--exit-0", "--with-nth=2..", "--query=test"},
+			wantArgs: []string{"--exit-0", "--with-nth=2..", "--query=test"},
 			wantPath: "/usr/local/bin/fzf",
 		},
 		{
@@ -258,7 +258,7 @@ func TestClient_Select(t *testing.T) {
 			trOutput:    []byte("abc\titem\n"),
 			wantErr:     true,
 			errContains: "failed to parse selection index",
-			wantArgs:    []string{"--select-1", "--exit-0", "--with-nth=2..", "--query=test"},
+			wantArgs:    []string{"--exit-0", "--with-nth=2..", "--query=test"},
 			wantPath:    "/usr/local/bin/fzf",
 		},
 		{
@@ -270,7 +270,7 @@ func TestClient_Select(t *testing.T) {
 			wantIdx:        0,
 			wantOk:         false,
 			wantErr:        false,
-			wantArgs:       []string{"--select-1", "--exit-0", "--with-nth=2..", "--query="},
+			wantArgs:       []string{"--exit-0", "--with-nth=2..", "--query="},
 			wantPath:       "/usr/local/bin/fzf",
 			wantStdinLines: []string{},
 		},
@@ -283,7 +283,7 @@ func TestClient_Select(t *testing.T) {
 			wantIdx:  0,
 			wantOk:   false,
 			wantErr:  false,
-			wantArgs: []string{"--select-1", "--exit-0", "--with-nth=2..", "--query=test"},
+			wantArgs: []string{"--exit-0", "--with-nth=2..", "--query=test"},
 			wantPath: "/usr/local/bin/fzf",
 		},
 		{
@@ -295,7 +295,7 @@ func TestClient_Select(t *testing.T) {
 			wantIdx:  41,
 			wantOk:   true,
 			wantErr:  false,
-			wantArgs: []string{"--select-1", "--exit-0", "--with-nth=2..", "--query=test"},
+			wantArgs: []string{"--exit-0", "--with-nth=2..", "--query=test"},
 			wantPath: "/usr/local/bin/fzf",
 		},
 	}

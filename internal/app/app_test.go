@@ -98,6 +98,7 @@ type mockFzfClient struct {
 	selectResult  int
 	selectOk      bool
 	selectError   error
+	selectCalled  bool
 	providedItems []string
 	providedQuery string
 }
@@ -115,6 +116,7 @@ func (m *mockFzfClient) Version() string {
 }
 
 func (m *mockFzfClient) Select(items []string, query string) (int, bool, error) {
+	m.selectCalled = true
 	m.providedItems = items
 	m.providedQuery = query
 	return m.selectResult, m.selectOk, m.selectError
@@ -176,6 +178,41 @@ func TestFilterSessions(t *testing.T) {
 			query:     "ma",
 			wantLen:   2,
 			wantNames: []string{"myapp", "ma"},
+		},
+		{
+			name:      "non-prefix substring does not match",
+			sessions:  []*session.Session{{Name: "myapp"}, {Name: "other"}},
+			query:     "app",
+			wantLen:   0,
+			wantNames: []string{},
+		},
+		{
+			name:      "prefix match works",
+			sessions:  []*session.Session{{Name: "myapp"}, {Name: "other"}},
+			query:     "my",
+			wantLen:   1,
+			wantNames: []string{"myapp"},
+		},
+		{
+			name:      "alias non-prefix substring does not match",
+			sessions:  []*session.Session{{Name: "session", Aliases: []string{"myapp"}}, {Name: "other"}},
+			query:     "yap",
+			wantLen:   0,
+			wantNames: []string{},
+		},
+		{
+			name:      "alias case-insensitive prefix match",
+			sessions:  []*session.Session{{Name: "session", Aliases: []string{"myapp"}}, {Name: "other"}},
+			query:     "MY",
+			wantLen:   1,
+			wantNames: []string{"session"},
+		},
+		{
+			name:      "query longer than name does not match",
+			sessions:  []*session.Session{{Name: "myapp"}, {Name: "other"}},
+			query:     "myapplication",
+			wantLen:   0,
+			wantNames: []string{},
 		},
 	}
 
@@ -642,6 +679,8 @@ func TestApp_Run_ErrorPaths(t *testing.T) {
 		attachError      error
 		wantExit         int
 		wantSwitchCalled bool
+		wantFzfCalled    bool
+		wantFzfNotCalled bool
 	}{
 		{
 			name:         "interactive: attach error returns 1",
@@ -675,10 +714,12 @@ func TestApp_Run_ErrorPaths(t *testing.T) {
 			wantSwitchCalled: true,
 		},
 		{
-			name:       "query: single partial match success returns 0",
-			query:      "oth",
-			listResult: []*session.Session{{Name: "other", Exists: true}},
-			wantExit:   0,
+			name:             "query: single partial match success returns 0",
+			query:            "oth",
+			listResult:       []*session.Session{{Name: "other", Exists: true}},
+			fzfAvailable:     true,
+			wantExit:         0,
+			wantFzfNotCalled: true,
 		},
 		{
 			name:       "query: zero partial matches with no fzf returns 0",
@@ -713,6 +754,16 @@ func TestApp_Run_ErrorPaths(t *testing.T) {
 			attachError:  errors.New("attach failed"),
 			wantExit:     1,
 		},
+		{
+			name:          "query: single non-prefix match defers to fzf",
+			query:         "ther",
+			listResult:    []*session.Session{{Name: "other", Exists: true}},
+			fzfAvailable:  true,
+			fzfResult:     0,
+			fzfOk:         true,
+			wantExit:      0,
+			wantFzfCalled: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -744,6 +795,12 @@ func TestApp_Run_ErrorPaths(t *testing.T) {
 			}
 			if tt.wantSwitchCalled && !tmuxMock.switchSessionCalled {
 				t.Error("SwitchSession should be called")
+			}
+			if tt.wantFzfCalled && !fzfMock.selectCalled {
+				t.Error("fzf Select should be called")
+			}
+			if tt.wantFzfNotCalled && fzfMock.selectCalled {
+				t.Error("fzf Select should NOT be called on single prefix match")
 			}
 		})
 	}

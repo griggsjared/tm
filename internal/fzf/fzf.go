@@ -82,7 +82,7 @@ func (c *Client) Select(items []string, query string) (int, bool, error) {
 	}
 
 	args := make([]string, 0, 4)
-	args = append(args, "--select-1", "--exit-0", "--with-nth=2..", fmt.Sprintf("--query=%s", query))
+	args = append(args, "--exit-0", "--with-nth=2..", fmt.Sprintf("--query=%s", query))
 
 	var stdin bytes.Buffer
 	for i, item := range items {

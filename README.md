@@ -34,7 +34,7 @@ tm version      # Show tm version
 ### How it works
 
 1. **Exact match**: If you provide a session name and it exists, attaches immediately
-2. **Single partial match**: If only one session matches your input, attaches immediately
+2. **Single prefix match**: If only one session name or alias starts with your input, attaches immediately
 3. **Multiple matches**: Opens fzf with matching sessions for you to select
 4. **No matches**: Opens fzf with all sessions, or prints list if fzf unavailable
 

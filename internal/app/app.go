@@ -146,12 +146,12 @@ func (a *App) runWithQuery(query, currentSession string) error {
 		return a.attachToSession(session)
 	}
 
-	// No exact match - filter by partial
+	// No exact match - filter by prefix
 	allSessions := a.sessionFinder.ListExcluding(false, currentSession)
 	matches := filterSessions(allSessions, query)
 
 	if len(matches) == 1 {
-		// Single partial match - attach directly
+		// Single prefix match - attach directly
 		return a.attachToSession(matches[0])
 	}
 
@@ -279,12 +279,12 @@ func filterSessions(sessions []*session.Session, query string) []*session.Sessio
 	query = strings.ToLower(query)
 	var matches []*session.Session
 	for _, s := range sessions {
-		if strings.Contains(strings.ToLower(s.Name), query) {
+		if strings.HasPrefix(strings.ToLower(s.Name), query) {
 			matches = append(matches, s)
 			continue
 		}
 		for _, alias := range s.Aliases {
-			if strings.Contains(strings.ToLower(alias), query) {
+			if strings.HasPrefix(strings.ToLower(alias), query) {
 				matches = append(matches, s)
 				break
 			}
