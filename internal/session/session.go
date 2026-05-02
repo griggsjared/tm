@@ -55,7 +55,11 @@ func NewFinder(r TmuxRepository, pds []PreDefinedSession, sd []SmartDirectory) *
 }
 
 func (f *Finder) Find(name string) (*Session, error) {
-	session, err := f.findExistingSession(name)
+	if session := f.findExistingSession(name); session != nil {
+		return session, nil
+	}
+
+	session, err := f.findPreDefinedSession(name)
 	if err != nil {
 		return nil, err
 	}
@@ -63,27 +67,7 @@ func (f *Finder) Find(name string) (*Session, error) {
 		return session, nil
 	}
 
-	if len(f.preDefinedSessions) > 0 {
-		session, err = f.findPreDefinedSession(name)
-		if err != nil {
-			return nil, err
-		}
-		if session != nil {
-			return session, nil
-		}
-	}
-
-	if len(f.smartDirectories) > 0 {
-		session, err = f.findSmartSessionDirectorySession(name)
-		if err != nil {
-			return nil, err
-		}
-		if session != nil {
-			return session, nil
-		}
-	}
-
-	return nil, nil
+	return f.findSmartSessionDirectorySession(name)
 }
 
 func (f *Finder) ListExcluding(onlyExisting bool, exclude string) []*Session {
@@ -166,11 +150,11 @@ func (f *Finder) List(onlyExisting bool) []*Session {
 	return sessions
 }
 
-func (f *Finder) findExistingSession(name string) (*Session, error) {
+func (f *Finder) findExistingSession(name string) *Session {
 	if f.repository.HasSession(name) {
-		return New(name, "", true, 0), nil
+		return New(name, "", true, 0)
 	}
-	return nil, nil
+	return nil
 }
 
 func (f *Finder) findPreDefinedSession(name string) (*Session, error) {
@@ -180,11 +164,7 @@ func (f *Finder) findPreDefinedSession(name string) (*Session, error) {
 			continue
 		}
 
-		existing, err := f.findExistingSession(pd.Name)
-		if err != nil {
-			return nil, err
-		}
-		if existing != nil {
+		if existing := f.findExistingSession(pd.Name); existing != nil {
 			existing.Aliases = pd.Aliases
 			return existing, nil
 		}

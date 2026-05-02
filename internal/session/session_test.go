@@ -24,10 +24,7 @@ func TestFindExistingSession(t *testing.T) {
 		checker := &mockTmuxRepository{hasSession: true}
 		finder := NewFinder(checker, nil, nil)
 
-		sess, err := finder.findExistingSession("test")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		sess := finder.findExistingSession("test")
 		if sess == nil {
 			t.Fatal("expected session, got nil")
 		}
@@ -43,10 +40,7 @@ func TestFindExistingSession(t *testing.T) {
 		checker := &mockTmuxRepository{hasSession: false}
 		finder := NewFinder(checker, nil, nil)
 
-		sess, err := finder.findExistingSession("test")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		sess := finder.findExistingSession("test")
 		if sess != nil {
 			t.Errorf("expected nil, got %v", sess)
 		}
@@ -590,5 +584,123 @@ func TestExpandHomeDir(t *testing.T) {
 				t.Errorf("expected %s, got %s", tt.want, got)
 			}
 		})
+	}
+
+	t.Run("error when HOME unset", func(t *testing.T) {
+		t.Setenv("HOME", "")
+		_, err := expandHomeDir("~/test")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+}
+
+func TestFindPreDefinedSession_ExpandHomeDirError(t *testing.T) {
+	t.Setenv("HOME", "")
+	pre := []PreDefinedSession{
+		{Name: "myapp", Dir: "~/projects/myapp"},
+	}
+	finder := NewFinder(&mockTmuxRepository{}, pre, nil)
+	_, err := finder.findPreDefinedSession("myapp")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestFindSmartSessionDirectorySession_ExpandHomeDirError(t *testing.T) {
+	t.Setenv("HOME", "")
+	finder := NewFinder(&mockTmuxRepository{}, nil, []SmartDirectory{{Dir: "~/projects"}})
+	_, err := finder.findSmartSessionDirectorySession("myapp")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestFind_PreDefinedExpandHomeDirError(t *testing.T) {
+	t.Setenv("HOME", "")
+	pre := []PreDefinedSession{
+		{Name: "myapp", Dir: "~/projects/myapp"},
+	}
+	finder := NewFinder(&mockTmuxRepository{}, pre, nil)
+	_, err := finder.Find("myapp")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestFind_SmartDirectoryExpandHomeDirError(t *testing.T) {
+	t.Setenv("HOME", "")
+	finder := NewFinder(&mockTmuxRepository{}, nil, []SmartDirectory{{Dir: "~/projects"}})
+	_, err := finder.Find("myapp")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestGetAllPreDefinedSessions_ExpandHomeDirError(t *testing.T) {
+	tmp := t.TempDir()
+	validDir := filepath.Join(tmp, "valid")
+	os.Mkdir(validDir, 0755)
+
+	pre := []PreDefinedSession{
+		{Name: "bad", Dir: "~/bad"},
+		{Name: "good", Dir: validDir},
+	}
+	finder := NewFinder(&mockTmuxRepository{}, pre, nil)
+
+	t.Setenv("HOME", "")
+	got := finder.getAllPreDefinedSessions()
+
+	// "bad" should be skipped; "good" uses an absolute path so it passes through
+	if len(got) != 1 || got[0].Name != "good" {
+		t.Errorf("expected only 'good' session, got %v", got)
+	}
+}
+
+func TestGetAllSmartSessionDirectorySessions_ExpandHomeDirError(t *testing.T) {
+	tmp := t.TempDir()
+	os.Mkdir(filepath.Join(tmp, "proj"), 0755)
+
+	finder := NewFinder(&mockTmuxRepository{}, nil, []SmartDirectory{
+		{Dir: "~/bad"},
+		{Dir: tmp},
+	})
+
+	t.Setenv("HOME", "")
+	got := finder.getAllSmartSessionDirectorySessions()
+
+	// "~/bad" should be skipped; tmp uses an absolute path
+	if len(got) != 1 || got[0].Name != "proj" {
+		t.Errorf("expected only 'proj' session, got %v", got)
+	}
+}
+
+func TestGetAllSmartSessionDirectorySessions_ReadDirError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("running as root, permission checks are ineffective")
+	}
+	tmp := t.TempDir()
+	if err := os.Chmod(tmp, 0000); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(tmp, 0755)
+
+	finder := NewFinder(&mockTmuxRepository{}, nil, []SmartDirectory{{Dir: tmp}})
+	got := finder.getAllSmartSessionDirectorySessions()
+	if len(got) != 0 {
+		t.Errorf("expected empty result, got %v", got)
+	}
+}
+
+func TestGetAllSmartSessionDirectorySessions_SkipsNonDirectories(t *testing.T) {
+	tmp := t.TempDir()
+	os.Mkdir(filepath.Join(tmp, "subdir"), 0755)
+	os.WriteFile(filepath.Join(tmp, "file.txt"), []byte(""), 0644)
+
+	finder := NewFinder(&mockTmuxRepository{}, nil, []SmartDirectory{{Dir: tmp}})
+	got := finder.getAllSmartSessionDirectorySessions()
+
+	if len(got) != 1 || got[0].Name != "subdir" {
+		t.Errorf("expected only 'subdir', got %v", got)
 	}
 }
