@@ -681,6 +681,12 @@ func TestApp_Run_ErrorPaths(t *testing.T) {
 			wantExit:   0,
 		},
 		{
+			name:       "query: zero partial matches with no fzf returns 0",
+			query:      "xyz",
+			listResult: []*session.Session{{Name: "other", Exists: true}},
+			wantExit:   0,
+		},
+		{
 			name:         "query: selectSession success returns 0",
 			query:        "te",
 			listResult:   []*session.Session{{Name: "test1"}, {Name: "test2"}},
@@ -803,6 +809,49 @@ func TestApp_Run_ErrorsGoToStderr(t *testing.T) {
 
 			if !strings.Contains(output, tt.wantErr) {
 				t.Errorf("expected stderr to contain %q, got:\n%s", tt.wantErr, output)
+			}
+		})
+	}
+}
+
+func TestApp_DebugMsg(t *testing.T) {
+	tests := []struct {
+		name       string
+		debug      bool
+		msg        string
+		wantOutput string
+	}{
+		{
+			name:       "debug true prints message",
+			debug:      true,
+			msg:        "test debug message",
+			wantOutput: "test debug message\n",
+		},
+		{
+			name:       "debug false prints nothing",
+			debug:      false,
+			msg:        "creating session foo",
+			wantOutput: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := New(&mockTmuxClient{}, &mockFzfClient{}, &mockSessionFinder{}, tt.debug, "test")
+
+			oldStdout := os.Stdout
+			r, w, _ := os.Pipe()
+			os.Stdout = w
+
+			app.debugMsg(tt.msg)
+
+			w.Close()
+			os.Stdout = oldStdout
+			out, _ := io.ReadAll(r)
+			output := string(out)
+
+			if output != tt.wantOutput {
+				t.Errorf("debugMsg() output = %q, want %q", output, tt.wantOutput)
 			}
 		})
 	}
