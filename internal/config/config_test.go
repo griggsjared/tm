@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/griggsjared/tm/internal/session"
@@ -97,21 +98,12 @@ func TestLoadConfigFromEnv(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Clean up env vars after test
-			oldVars := make(map[string]string)
-			for k, v := range tt.envVars {
-				oldVars[k] = os.Getenv(k)
-				os.Setenv(k, v)
+			for _, k := range []string{"TM_DEBUG", "TM_TMUX_PATH", "TM_FZF_PATH", "TM_CONFIG_PATH"} {
+				t.Setenv(k, "")
 			}
-			defer func() {
-				for k, v := range oldVars {
-					if v == "" {
-						os.Unsetenv(k)
-					} else {
-						os.Setenv(k, v)
-					}
-				}
-			}()
+			for k, v := range tt.envVars {
+				t.Setenv(k, v)
+			}
 
 			cfg, err := loadConfigFromEnv()
 			if err != nil {
@@ -206,22 +198,72 @@ sessions: [
 			}
 		})
 	}
+
+	t.Run("missing custom path", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		path := filepath.Join(tmpDir, "does-not-exist.yaml")
+		_, err := loadConfigFromConfigFile(path, filepath.Join(tmpDir, "default.yaml"))
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if !strings.Contains(err.Error(), "config file does not exist") {
+			t.Errorf("expected 'config file does not exist' in error, got: %v", err)
+		}
+	})
+
+	t.Run("missing default path creates empty config", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		defaultPath := filepath.Join(tmpDir, "config.yaml")
+		cfg, err := loadConfigFromConfigFile(defaultPath, defaultPath)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(cfg.PreDefinedSessions) != 0 || len(cfg.SmartDirectories) != 0 {
+			t.Errorf("expected empty config, got %+v", cfg)
+		}
+		if _, err := os.Stat(defaultPath); err != nil {
+			t.Errorf("expected default config file to be created: %v", err)
+		}
+	})
+
+	t.Run("permission denied", func(t *testing.T) {
+		if os.Getuid() == 0 {
+			t.Skip("running as root, permission checks are ineffective")
+		}
+		tmpDir := t.TempDir()
+		subDir := filepath.Join(tmpDir, "noperm")
+		if err := os.Mkdir(subDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		configPath := filepath.Join(subDir, "config.yaml")
+		if err := os.WriteFile(configPath, []byte(""), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(subDir, 0000); err != nil {
+			t.Fatal(err)
+		}
+		defer os.Chmod(subDir, 0755)
+
+		_, err := loadConfigFromConfigFile(configPath, filepath.Join(tmpDir, "default.yaml"))
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if !strings.Contains(err.Error(), "config file is inaccessible") {
+			t.Errorf("expected 'config file is inaccessible' in error, got: %v", err)
+		}
+	})
 }
 
 func TestLoad(t *testing.T) {
 	t.Run("tmux path validation leaves empty", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		configPath := filepath.Join(tmpDir, "config.yaml")
-		os.WriteFile(configPath, []byte(""), 0644)
+		if err := os.WriteFile(configPath, []byte(""), 0644); err != nil {
+			t.Fatal(err)
+		}
 
-		// Set invalid tmux path
-		oldTmux := os.Getenv("TM_TMUX_PATH")
-		os.Setenv("TM_TMUX_PATH", "/nonexistent/tmux")
-		defer os.Setenv("TM_TMUX_PATH", oldTmux)
-
-		oldConfig := os.Getenv("TM_CONFIG_PATH")
-		os.Setenv("TM_CONFIG_PATH", configPath)
-		defer os.Setenv("TM_CONFIG_PATH", oldConfig)
+		t.Setenv("TM_TMUX_PATH", "/nonexistent/tmux")
+		t.Setenv("TM_CONFIG_PATH", configPath)
 
 		cfg, err := Load()
 		if err != nil {
@@ -235,16 +277,12 @@ func TestLoad(t *testing.T) {
 	t.Run("fzf path validation leaves empty", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		configPath := filepath.Join(tmpDir, "config.yaml")
-		os.WriteFile(configPath, []byte(""), 0644)
+		if err := os.WriteFile(configPath, []byte(""), 0644); err != nil {
+			t.Fatal(err)
+		}
 
-		// Set invalid fzf path
-		oldFzf := os.Getenv("TM_FZF_PATH")
-		os.Setenv("TM_FZF_PATH", "/nonexistent/fzf")
-		defer os.Setenv("TM_FZF_PATH", oldFzf)
-
-		oldConfig := os.Getenv("TM_CONFIG_PATH")
-		os.Setenv("TM_CONFIG_PATH", configPath)
-		defer os.Setenv("TM_CONFIG_PATH", oldConfig)
+		t.Setenv("TM_FZF_PATH", "/nonexistent/fzf")
+		t.Setenv("TM_CONFIG_PATH", configPath)
 
 		cfg, err := Load()
 		if err != nil {

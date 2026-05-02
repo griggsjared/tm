@@ -3,7 +3,6 @@ package config
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -117,37 +116,33 @@ type fileConfig struct {
 	SmartDirectories []string `yaml:"smart_directories"`
 }
 
-func loadConfigFromConfigFile(path string, dPath string) (*fileConfig, error) {
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) && path == dPath {
-			if err := os.MkdirAll(filepath.Dir(dPath), 0755); err != nil {
-				return nil, err
+func loadConfigFromConfigFile(path, defaultPath string) (*fileConfig, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if path != defaultPath {
+				return nil, fmt.Errorf("config file does not exist: %w", err)
 			}
-			if err := os.WriteFile(dPath, []byte(""), 0644); err != nil {
-				return nil, err
-			}
-			return &fileConfig{}, nil
+			return createDefaultConfigFile(defaultPath)
 		}
-		return nil, fmt.Errorf("config file does not exist: %w", err)
-	}
-
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	content, err := io.ReadAll(file)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("config file is inaccessible: %w", err)
 	}
 
 	var c fileConfig
 	if err := yaml.Unmarshal(content, &c); err != nil {
 		return nil, err
 	}
-
 	return &c, nil
+}
+
+func createDefaultConfigFile(path string) (*fileConfig, error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(path, nil, 0600); err != nil {
+		return nil, err
+	}
+	return &fileConfig{}, nil
 }
 
 func defaultConfigPath() (string, error) {
