@@ -456,3 +456,38 @@ func TestResolveBinaryPath(t *testing.T) {
 		}
 	})
 }
+
+func TestCreateDefaultConfigFile(t *testing.T) {
+	t.Run("MkdirAll error", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		// Use an existing file as a path component so MkdirAll fails with ENOTDIR
+		blockingFile := filepath.Join(tmpDir, "blocking")
+		if err := os.WriteFile(blockingFile, []byte(""), 0644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := createDefaultConfigFile(filepath.Join(blockingFile, "config.yaml"))
+		if err == nil {
+			t.Fatal("expected error when MkdirAll fails, got nil")
+		}
+	})
+
+	t.Run("WriteFile error", func(t *testing.T) {
+		if os.Getuid() == 0 {
+			t.Skip("running as root, permission checks are ineffective")
+		}
+		tmpDir := t.TempDir()
+		subDir := filepath.Join(tmpDir, "subdir")
+		if err := os.MkdirAll(subDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		// 0555: traversable but not writable, so MkdirAll succeeds but WriteFile fails
+		if err := os.Chmod(subDir, 0555); err != nil {
+			t.Fatal(err)
+		}
+		defer os.Chmod(subDir, 0755)
+		_, err := createDefaultConfigFile(filepath.Join(subDir, "config.yaml"))
+		if err == nil {
+			t.Fatal("expected error when WriteFile fails, got nil")
+		}
+	})
+}

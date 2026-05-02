@@ -497,6 +497,7 @@ func TestClient_AllSessions(t *testing.T) {
 		wantPath   string
 		wantOutput []*session.Session
 		crOutput   []byte
+		crError    error
 	}{
 		{
 			name:       "list no sessions",
@@ -542,11 +543,21 @@ func TestClient_AllSessions(t *testing.T) {
 			},
 			crOutput: []byte("session1\t/path/to/session1\tnot-a-number\n"),
 		},
+		{
+			name:       "runner error returns empty slice",
+			crError:    errors.New("no tmux server running"),
+			wantOutput: []*session.Session{},
+		},
+		{
+			name:       "malformed line with fewer than 3 fields is skipped",
+			crOutput:   []byte("session1\t/path/to/session1\n"),
+			wantOutput: []*session.Session{},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cr := &TestRunner{output: tt.crOutput}
+			cr := &TestRunner{output: tt.crOutput, error: tt.crError}
 			client := NewClient(cr, "/usr/bin/tmux")
 
 			sessions := client.AllSessions()
@@ -563,7 +574,7 @@ func TestClient_AllSessions(t *testing.T) {
 				}
 			}
 
-			if cr.providedPath != tt.wantPath {
+			if tt.wantPath != "" && cr.providedPath != tt.wantPath {
 				t.Fatalf("Expected path %s, got %s", tt.wantPath, cr.providedPath)
 			}
 
