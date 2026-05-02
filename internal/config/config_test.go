@@ -38,20 +38,30 @@ func TestNew(t *testing.T) {
 }
 
 func TestDefaultConfigPath(t *testing.T) {
-	home := os.Getenv("HOME")
-	if home == "" {
-		t.Skip("HOME not set, skipping test")
-	}
+	t.Run("success", func(t *testing.T) {
+		home := os.Getenv("HOME")
+		if home == "" {
+			t.Skip("HOME not set, skipping test")
+		}
 
-	path, err := defaultConfigPath()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+		path, err := defaultConfigPath()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
-	expected := filepath.Join(home, ".config", "tm", "config.yaml")
-	if path != expected {
-		t.Errorf("expected %s, got %s", expected, path)
-	}
+		expected := filepath.Join(home, ".config", "tm", "config.yaml")
+		if path != expected {
+			t.Errorf("expected %s, got %s", expected, path)
+		}
+	})
+
+	t.Run("missing home", func(t *testing.T) {
+		t.Setenv("HOME", "")
+		_, err := defaultConfigPath()
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	})
 }
 
 func TestLoadConfigFromEnv(t *testing.T) {
@@ -62,6 +72,7 @@ func TestLoadConfigFromEnv(t *testing.T) {
 		wantTmux   string
 		wantFzf    string
 		wantConfig string
+		wantErr    bool
 	}{
 		{
 			name:       "default values",
@@ -70,6 +81,7 @@ func TestLoadConfigFromEnv(t *testing.T) {
 			wantTmux:   "",
 			wantFzf:    "",
 			wantConfig: "",
+			wantErr:    false,
 		},
 		{
 			name: "all env vars set",
@@ -83,6 +95,7 @@ func TestLoadConfigFromEnv(t *testing.T) {
 			wantTmux:   "/usr/bin/tmux",
 			wantFzf:    "/usr/bin/fzf",
 			wantConfig: "/custom/config.yaml",
+			wantErr:    false,
 		},
 		{
 			name: "only fzf path set",
@@ -93,6 +106,14 @@ func TestLoadConfigFromEnv(t *testing.T) {
 			wantTmux:   "",
 			wantFzf:    "/opt/fzf/bin/fzf",
 			wantConfig: "",
+			wantErr:    false,
+		},
+		{
+			name: "invalid debug value",
+			envVars: map[string]string{
+				"TM_DEBUG": "not-a-bool",
+			},
+			wantErr: true,
 		},
 	}
 
@@ -106,6 +127,12 @@ func TestLoadConfigFromEnv(t *testing.T) {
 			}
 
 			cfg, err := loadConfigFromEnv()
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error")
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -226,6 +253,38 @@ sessions: [
 		}
 	})
 
+	t.Run("missing default path create fails mkdir", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		blockingFile := filepath.Join(tmpDir, "blocking")
+		if err := os.WriteFile(blockingFile, []byte(""), 0644); err != nil {
+			t.Fatal(err)
+		}
+		defaultPath := filepath.Join(blockingFile, "config.yaml")
+		_, err := loadConfigFromConfigFile(defaultPath, defaultPath)
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	})
+
+	t.Run("missing default path create fails write", func(t *testing.T) {
+		if os.Getuid() == 0 {
+			t.Skip("running as root, permission checks are ineffective")
+		}
+		tmpDir := t.TempDir()
+		defaultPath := filepath.Join(tmpDir, "config.yaml")
+		if err := os.MkdirAll(tmpDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(tmpDir, 0000); err != nil {
+			t.Fatal(err)
+		}
+		defer os.Chmod(tmpDir, 0755)
+		_, err := loadConfigFromConfigFile(defaultPath, defaultPath)
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	})
+
 	t.Run("permission denied", func(t *testing.T) {
 		if os.Getuid() == 0 {
 			t.Skip("running as root, permission checks are ineffective")
@@ -267,7 +326,7 @@ func TestLoad(t *testing.T) {
 
 		cfg, err := Load()
 		if err != nil {
-			t.Errorf("unexpected error: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if cfg.TmuxPath != "" {
 			t.Errorf("expected empty TmuxPath for nonexistent path, got %s", cfg.TmuxPath)
@@ -286,10 +345,114 @@ func TestLoad(t *testing.T) {
 
 		cfg, err := Load()
 		if err != nil {
-			t.Errorf("unexpected error: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if cfg.FzfPath != "" {
 			t.Errorf("expected empty FzfPath for nonexistent path, got %s", cfg.FzfPath)
+		}
+	})
+
+	t.Run("merges env and file config", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "config.yaml")
+		content := `
+sessions:
+  - dir: ~/projects/app1
+    name: app1
+    aliases:
+      - a1
+smart_directories:
+  - ~/projects
+`
+		if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		t.Setenv("TM_DEBUG", "true")
+		t.Setenv("TM_CONFIG_PATH", configPath)
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !cfg.Debug {
+			t.Errorf("expected Debug to be true")
+		}
+		if len(cfg.PreDefinedSessions) != 1 || cfg.PreDefinedSessions[0].Name != "app1" {
+			t.Errorf("expected 1 predefined session app1, got %v", cfg.PreDefinedSessions)
+		}
+		if len(cfg.SmartDirectories) != 1 || cfg.SmartDirectories[0].Dir != "~/projects" {
+			t.Errorf("expected 1 smart directory ~/projects, got %v", cfg.SmartDirectories)
+		}
+	})
+
+	t.Run("loadConfigFromEnv error", func(t *testing.T) {
+		t.Setenv("TM_DEBUG", "not-a-bool")
+		_, err := Load()
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	})
+
+	t.Run("defaultConfigPath error", func(t *testing.T) {
+		t.Setenv("HOME", "")
+		_, err := Load()
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	})
+
+	t.Run("loadConfigFromConfigFile error", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "config.yaml")
+		if err := os.WriteFile(configPath, []byte("invalid: ["), 0644); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("TM_CONFIG_PATH", configPath)
+		_, err := Load()
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	})
+}
+
+func TestResolveBinaryPath(t *testing.T) {
+	t.Run("valid env path", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		path := filepath.Join(tmpDir, "tmux")
+		if err := os.WriteFile(path, []byte(""), 0755); err != nil {
+			t.Fatal(err)
+		}
+		got := resolveBinaryPath(path, "tmux")
+		if got != path {
+			t.Errorf("expected %s, got %s", path, got)
+		}
+	})
+
+	t.Run("invalid env path", func(t *testing.T) {
+		got := resolveBinaryPath("/nonexistent/tmux", "tmux")
+		if got != "" {
+			t.Errorf("expected empty, got %s", got)
+		}
+	})
+
+	t.Run("empty env path binary found", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		path := filepath.Join(tmpDir, "tmux")
+		if err := os.WriteFile(path, []byte(""), 0755); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("PATH", tmpDir+string(filepath.ListSeparator)+os.Getenv("PATH"))
+		got := resolveBinaryPath("", "tmux")
+		if got != path {
+			t.Errorf("expected %s, got %s", path, got)
+		}
+	})
+
+	t.Run("empty env path binary not found", func(t *testing.T) {
+		got := resolveBinaryPath("", "definitely-not-a-real-binary-12345")
+		if got != "" {
+			t.Errorf("expected empty, got %s", got)
 		}
 	})
 }
