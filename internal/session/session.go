@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -174,6 +175,8 @@ func (f *Finder) findPreDefinedSession(name string) (*Session, error) {
 			return nil, err
 		}
 
+		dir = filepath.Clean(dir)
+
 		if !dirExists(dir) {
 			continue
 		}
@@ -206,6 +209,7 @@ func (f *Finder) getAllPreDefinedSessions() []*Session {
 		if err != nil {
 			continue
 		}
+		dir = filepath.Clean(dir)
 		s := New(pd.Name, dir, false, 0)
 		s.Aliases = pd.Aliases
 		sessions = append(sessions, s)

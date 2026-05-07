@@ -521,7 +521,7 @@ func TestList_PredefinedSmartNameCollision(t *testing.T) {
 	os.Mkdir(projectDir, 0755)
 
 	pre := []PreDefinedSession{
-		{Name: "collision", Dir: projectDir},
+		{Name: "collision", Dir: projectDir + string(filepath.Separator)},
 	}
 
 	smart := []SmartDirectory{{Dir: tmp}}
