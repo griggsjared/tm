@@ -74,12 +74,9 @@ func (c *Client) HasSession(name string) bool {
 	return true
 }
 
-func (c *Client) NewSession(s *session.Session, detached bool) error {
-	if detached {
-		_, err := c.runner.Output(c.path, []string{"new-session", "-d", "-s", s.Name, "-c", s.Dir})
-		return err
-	}
-	return c.runner.Exec(c.path, []string{"tmux", "new-session", "-s", s.Name, "-c", s.Dir})
+func (c *Client) NewSession(s *session.Session) error {
+	_, err := c.runner.Output(c.path, []string{"new-session", "-d", "-s", s.Name, "-c", s.Dir})
+	return err
 }
 
 func (c *Client) AttachSession(s *session.Session) error {

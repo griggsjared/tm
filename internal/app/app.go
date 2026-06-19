@@ -13,7 +13,7 @@ type TmuxClient interface {
 	InsideTmux() bool
 	Path() string
 	Version() string
-	NewSession(s *session.Session, detached bool) error
+	NewSession(s *session.Session) error
 	AttachSession(s *session.Session) error
 	SwitchSession(s *session.Session) error
 	CurrentSession() string
@@ -207,7 +207,7 @@ func (a *App) attachToSession(s *session.Session) error {
 	if a.tmuxClient.InsideTmux() {
 		if !s.Exists {
 			a.debugMsg(fmt.Sprintf("Creating new session: %s", s.Name))
-			if err := a.tmuxClient.NewSession(s, true); err != nil {
+			if err := a.tmuxClient.NewSession(s); err != nil {
 				return fmt.Errorf("error creating session: %w", err)
 			}
 		}
@@ -220,7 +220,7 @@ func (a *App) attachToSession(s *session.Session) error {
 
 	if !s.Exists {
 		a.debugMsg(fmt.Sprintf("Creating new session: %s", s.Name))
-		if err := a.tmuxClient.NewSession(s, false); err != nil {
+		if err := a.tmuxClient.NewSession(s); err != nil {
 			return fmt.Errorf("error creating session: %w", err)
 		}
 	}

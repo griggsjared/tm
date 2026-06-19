@@ -17,7 +17,6 @@ type mockTmuxClient struct {
 	version             string
 	currentSession      string
 	newSessionCalled    bool
-	newSessionDetached  bool
 	attachSessionCalled bool
 	switchSessionCalled bool
 	newSessionError     error
@@ -46,9 +45,8 @@ func (m *mockTmuxClient) CurrentSession() string {
 	return m.currentSession
 }
 
-func (m *mockTmuxClient) NewSession(s *session.Session, detached bool) error {
+func (m *mockTmuxClient) NewSession(s *session.Session) error {
 	m.newSessionCalled = true
-	m.newSessionDetached = detached
 	m.lastSession = s
 	return m.newSessionError
 }
@@ -241,7 +239,6 @@ func TestAppAttachToSession(t *testing.T) {
 		attachSessionErr error
 		switchSessionErr error
 		wantNewCalled    bool
-		wantNewDetached  bool
 		wantAttachCalled bool
 		wantSwitchCalled bool
 		wantErr          bool
@@ -260,7 +257,6 @@ func TestAppAttachToSession(t *testing.T) {
 			session:          &session.Session{Name: "test", Exists: false},
 			insideTmux:       false,
 			wantNewCalled:    true,
-			wantNewDetached:  false,
 			wantAttachCalled: true,
 			wantSwitchCalled: false,
 			wantErr:          false,
@@ -293,7 +289,6 @@ func TestAppAttachToSession(t *testing.T) {
 			session:          &session.Session{Name: "test", Exists: false},
 			insideTmux:       true,
 			wantNewCalled:    true,
-			wantNewDetached:  true,
 			wantSwitchCalled: true,
 			wantErr:          false,
 		},
@@ -303,7 +298,6 @@ func TestAppAttachToSession(t *testing.T) {
 			insideTmux:      true,
 			newSessionErr:   errors.New("create failed"),
 			wantNewCalled:   true,
-			wantNewDetached: true,
 			wantErr:         true,
 		},
 		{
@@ -333,9 +327,6 @@ func TestAppAttachToSession(t *testing.T) {
 			}
 			if tmuxMock.newSessionCalled != tt.wantNewCalled {
 				t.Errorf("NewSession called = %v, want %v", tmuxMock.newSessionCalled, tt.wantNewCalled)
-			}
-			if tmuxMock.newSessionCalled && tmuxMock.newSessionDetached != tt.wantNewDetached {
-				t.Errorf("NewSession detached = %v, want %v", tmuxMock.newSessionDetached, tt.wantNewDetached)
 			}
 			if tmuxMock.attachSessionCalled != tt.wantAttachCalled {
 				t.Errorf("AttachSession called = %v, want %v", tmuxMock.attachSessionCalled, tt.wantAttachCalled)

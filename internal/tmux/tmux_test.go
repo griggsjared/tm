@@ -153,49 +153,25 @@ func TestClient_HasSession(t *testing.T) {
 
 func TestClient_NewSession(t *testing.T) {
 	tests := []struct {
-		name           string
-		sess           *session.Session
-		detached       bool
-		wantArgs       []string
-		wantPath       string
-		wantCalledWith string
-		wantErr        error
+		name     string
+		sess     *session.Session
+		wantArgs []string
+		wantPath string
+		wantErr  error
 	}{
 		{
-			name:           "non-detached: successful session creation",
-			sess:           &session.Session{Name: "new-test-session", Dir: "/tmp"},
-			detached:       false,
-			wantArgs:       []string{"tmux", "new-session", "-s", "new-test-session", "-c", "/tmp"},
-			wantPath:       "/usr/bin/tmux",
-			wantCalledWith: "exec",
-			wantErr:        nil,
+			name:     "successful session creation",
+			sess:     &session.Session{Name: "new-test-session", Dir: "/tmp"},
+			wantArgs: []string{"new-session", "-d", "-s", "new-test-session", "-c", "/tmp"},
+			wantPath: "/usr/bin/tmux",
+			wantErr:  nil,
 		},
 		{
-			name:           "non-detached: failed session creation",
-			sess:           &session.Session{Name: "failed-session", Dir: "/tmp"},
-			detached:       false,
-			wantArgs:       []string{"tmux", "new-session", "-s", "failed-session", "-c", "/tmp"},
-			wantPath:       "/usr/bin/tmux",
-			wantCalledWith: "exec",
-			wantErr:        errors.New("failed to create session"),
-		},
-		{
-			name:           "detached: successful session creation",
-			sess:           &session.Session{Name: "new-test-session", Dir: "/tmp"},
-			detached:       true,
-			wantArgs:       []string{"new-session", "-d", "-s", "new-test-session", "-c", "/tmp"},
-			wantPath:       "/usr/bin/tmux",
-			wantCalledWith: "output",
-			wantErr:        nil,
-		},
-		{
-			name:           "detached: failed session creation",
-			sess:           &session.Session{Name: "failed-session", Dir: "/tmp"},
-			detached:       true,
-			wantArgs:       []string{"new-session", "-d", "-s", "failed-session", "-c", "/tmp"},
-			wantPath:       "/usr/bin/tmux",
-			wantCalledWith: "output",
-			wantErr:        errors.New("failed to create session"),
+			name:     "failed session creation",
+			sess:     &session.Session{Name: "failed-session", Dir: "/tmp"},
+			wantArgs: []string{"new-session", "-d", "-s", "failed-session", "-c", "/tmp"},
+			wantPath: "/usr/bin/tmux",
+			wantErr:  errors.New("failed to create session"),
 		},
 	}
 
@@ -204,13 +180,13 @@ func TestClient_NewSession(t *testing.T) {
 			cr := &TestRunner{error: tt.wantErr}
 			client := NewClient(cr, "/usr/bin/tmux")
 
-			err := client.NewSession(tt.sess, tt.detached)
+			err := client.NewSession(tt.sess)
 
 			if err != tt.wantErr {
 				t.Fatalf("NewSession error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if cr.calledWith != tt.wantCalledWith {
-				t.Fatalf("Expected runner method %q, got %q", tt.wantCalledWith, cr.calledWith)
+			if cr.calledWith != "output" {
+				t.Fatalf("Expected runner method %q, got %q", "output", cr.calledWith)
 			}
 			if cr.providedPath != tt.wantPath {
 				t.Fatalf("Expected path %s, got %s", tt.wantPath, cr.providedPath)
